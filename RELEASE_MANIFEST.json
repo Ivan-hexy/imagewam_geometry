@@ -61,8 +61,8 @@
       "sha256": "72610a56bd04803416430816684553edcbbe749f7a839825ef7d2bbe9e9f44f0"
     },
     "README.md": {
-      "bytes": 7358,
-      "sha256": "a7f034763c7ca93ce8966f32683b4269c9982ffa4e561b563b0e4594907091b3"
+      "bytes": 15528,
+      "sha256": "f97e4ce7258415cd7a24c46ff3ac96f407616e1a06d9a62c853f001559926349"
     },
     "scripts/accelerate_configs/accelerate_zero1_ds.yaml": {
       "bytes": 496,
