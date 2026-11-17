@@ -1,0 +1,52 @@
+# @package _global_
+defaults:
+  - override /data: simple_rgbd
+  - override /model: imagewam_flux2_klein_4b_base
+  - _self_
+batch_size: 8
+num_workers: 8
+prefetch_factor: 2
+persistent_workers: true
+gradient_accumulation_steps: 2
+learning_rate: 2.5e-5
+weight_decay: 1.0e-2
+max_steps: 40000
+warmup_steps: 1000
+save_every: 10000
+eval_every: 0
+log_every: 10
+mixed_precision: bf16
+keep_latest_state_only: true
+keep_latest_weights_only: false
+resume: null
+precache_arrow: false
+build_lerobot_meta_cache: false
+build_norm_stats: false
+precache_fuse_norm_stats: false
+model:
+  flux2_src_path: ${oc.env:FLUX2_SRC,./third_party/flux2}
+  flux2_model_path: ${oc.env:FLUX2_MODEL_PATH,./checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors}
+  ae_model_path: ${oc.env:FLUX2_AE_MODEL_PATH,./checkpoints/flux2/FLUX.2-dev/ae.safetensors}
+  qwen3_model_spec: Qwen/Qwen3-4B
+  qwen_context_len: 128
+  proprio_dim: 32
+  action_dit_pretrained_path: ${oc.env:SIMPLE_ACTION_INIT,./checkpoints/action_dit_flux2_4b_simple9_36d_init.pt}
+  action_dit_config:
+    action_dim: 36
+  geometry_supervision:
+    enabled: true
+    kind: global_depth_pro
+    grid: [11, 20]
+    resolution: [256, 448]
+    horizon: 32
+    depth_pro_source: ${oc.env:DEPTH_PRO_SRC,./third_party/ml-depth-pro}
+    depth_pro_checkpoint: ${oc.env:DEPTH_PRO_CHECKPOINT,./checkpoints/depth_pro/depth_pro.pt}
+    freeze_depth_decoder: false
+    decoder_lr_scale: 0.1
+    lambda_xyz: 0.5
+    lambda_rotation: 5.0
+    predict_translation: false
+    xyz_beta: 0.1
+wandb:
+  enabled: false
+  name: simple_rgbd_global_depth_rotation32

@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - simple_rgbd_global_depth
+  - _self_
+model:
+  geometry_supervision:
+    enabled: false
+wandb:
+  name: imagewam_baseline

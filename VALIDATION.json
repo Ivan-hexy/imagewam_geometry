@@ -1,0 +1,10 @@
+{
+  "config_baseline_and_geometry": "passed",
+  "sampled_data_loader": "first and last windows of one trajectory for each of 8 tasks passed for both configurations",
+  "source_dataset": "792 episodes, 313553 frames; pinned episode manifest hash matched",
+  "cpu_backbone": "25-layer narrow FP32 model passed baseline output/gradient parity and action KV-cache parity",
+  "baseline_parity_max_output_error": 0.0,
+  "baseline_parity_max_gradient_error": 5.820766091346741e-10,
+  "training_reference": "200 updates on 4 A800 80GB GPUs, per-GPU batch 8 and accumulation 2 completed before export",
+  "limits": "Validation used an existing tested Python environment; fresh dependency installation and full GPU training in the exported directory were not rerun."
+}

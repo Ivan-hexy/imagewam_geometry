@@ -1,0 +1,37 @@
+# Local environments and credentials
+.venv/
+.download-venv/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pub
+.ssh/
+# Data and weights are downloaded separately
+/data/
+/checkpoints/
+/runs/
+/wandb/
+*.pt
+*.pth
+*.safetensors
+*.h5
+*.parquet
+*.mkv
+*.mp4
+*.log
+*.tar
+*.tar.gz
+*.zip
+# Build/cache files
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.cache/
+build/
+dist/
+.DS_Store
+.vscode/
+.idea/
