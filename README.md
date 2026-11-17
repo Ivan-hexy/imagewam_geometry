@@ -9,6 +9,11 @@
 
 baseline 不创建姿态／几何 tokens 和对应预测头，不是仅将辅助 loss 权重设为零。两组共用数据读取、动作尾部掩码和原有主干处理方式。
 
+本分支额外提供实验性的 `task=imagewam_geometry_pose`：在完整 geometry 上
+增加相对平移，采用测地角＋欧氏距离的统一位姿目标。**200 次更新尚未完成，
+默认 geometry 配置未替换。** 设计、资源限制与复现步骤见
+[位姿预测短测说明](docs/pose_metric_pilot.md)。
+
 ## 当前实现
 
 - action chunk 为 32，RGB 输入为 176×320；全局深度／XYZ 为 256×448，内参同步缩放。

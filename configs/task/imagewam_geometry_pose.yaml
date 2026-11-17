@@ -1,0 +1,16 @@
+# @package _global_
+# Experimental pose upgrade; not yet validated by a completed 200-update run.
+defaults:
+  - imagewam_geometry
+  - _self_
+optimizer_foreach: false
+model:
+  geometry_supervision:
+    predict_translation: true
+    pose_loss_type: metric_normalized
+    # Fixed training-only label statistics; see docs/pose_metric_pilot.md.
+    pose_rotation_scale_rad: 0.021099236770746314
+    pose_translation_scale_m: 0.01463603222844109
+    lambda_pose: 0.1
+wandb:
+  name: imagewam_geometry_pose_metric

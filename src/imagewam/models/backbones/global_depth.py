@@ -6,6 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 from .supervision_masks import masked_mean
+from .pose_objective import rotation_residual, translation_residual, rotation_angle
 
 
 def backproject(depth, K):
@@ -91,11 +92,11 @@ class GlobalDepthRegisters(nn.Module):
         xyz=masked_mean(per_sample,counts>0)
         R=rotation_matrix(self.rotation_head(pose.to(self.rotation_head[0].weight.dtype)))
         target=sample['geometry_rotation'].to(pose.device).float()
-        # Squared chordal SO(3) distance: smooth at identity, no Euler wraparound.
+        # Keep the legacy chordal loss unless the metric pose objective is selected.
         rotation_valid=sample.get('geometry_rotation_valid',torch.ones(pose.shape[:2],device=pose.device,dtype=torch.bool)).to(pose.device).bool()
         # Mask missing poses before computing errors, including non-finite placeholders.
         target=torch.where(rotation_valid[...,None,None],target,torch.eye(3,device=pose.device))
-        rotation_errors=(R-target).square().sum((-1,-2))/8
+        rotation_errors=rotation_residual(R,target,self.cfg)
         rotation_counts=rotation_valid.sum(1)
         per_sample_rotation=torch.where(rotation_valid,rotation_errors,0.).sum(1)/rotation_counts.clamp_min(1)
         rot=masked_mean(per_sample_rotation,rotation_counts>0)
@@ -106,8 +107,7 @@ class GlobalDepthRegisters(nn.Module):
             translation_valid=sample['geometry_translation_valid'].to(pose.device).bool()
             translation_target=sample['geometry_translation'].to(pose.device).float()
             translation_target=torch.where(translation_valid[...,None],translation_target,0.)
-            translation_errors=F.smooth_l1_loss(translation,translation_target,reduction='none',
-                beta=self.cfg.get('translation_beta',.05)).mean(-1)
+            translation_errors=translation_residual(translation,translation_target,self.cfg)
             translation_counts=translation_valid.sum(1)
             per_sample_translation=torch.where(translation_valid,translation_errors,0.).sum(1)/translation_counts.clamp_min(1)
             trans=masked_mean(per_sample_translation,translation_counts>0)
@@ -118,20 +118,18 @@ class GlobalDepthRegisters(nn.Module):
                 translation_identity_error_m=float(masked_mean(translation_target.norm(dim=-1),translation_valid)),
                 translation_valid_steps=float(translation_counts.sum()))
         if getattr(self,'audit_components',False): self.last_loss_components=(xyz,rot,trans)
-        # Frobenius inner product equals trace(R^T target). Elementwise FP32
-        # avoids autocast rounding the matrix product to BF16 near cos(theta)=1.
-        cos=((R.detach().float()*target).sum(-2).sum(-1)-1)/2
-        target_cos=(target.diagonal(dim1=-2,dim2=-1).sum(-1)-1)/2
+        angles=rotation_angle(R.detach(),target)
+        identity_angles=rotation_angle(torch.eye(3,device=target.device).expand_as(target),target)
         # One pose objective and weight; retain separate diagnostics in native units.
-        pose_loss=rot+trans
+        pose_loss=(rot+trans)*(.5 if self.cfg.get('pose_loss_type')=='metric_normalized' else 1.)
         pose_weight=self.cfg.get('lambda_pose',self.cfg.get('lambda_rotation',.05))
         total=self.cfg.get('lambda_xyz',.1)*xyz+pose_weight*pose_loss
         metrics={'loss_global_xyz':float(xyz.detach()),'loss_relative_rotation':float(rot.detach()),
                  'loss_relative_pose':float(pose_loss.detach()),
                  'loss_relative_pose_weighted':float((pose_weight*pose_loss).detach()),
-                 'rotation_error_deg':float(masked_mean(cos.detach().clamp(-1,1).acos(),rotation_valid)*180/torch.pi),
-                 'rotation_endpoint_error_deg':float(masked_mean(cos.detach()[:,-1].clamp(-1,1).acos(),rotation_valid[:,-1])*180/torch.pi),
-                 'rotation_identity_error_deg':float(masked_mean(target_cos.clamp(-1,1).acos(),rotation_valid)*180/torch.pi),
+                 'rotation_error_deg':float(masked_mean(angles,rotation_valid)*180/torch.pi),
+                 'rotation_endpoint_error_deg':float(masked_mean(angles[:,-1],rotation_valid[:,-1])*180/torch.pi),
+                 'rotation_identity_error_deg':float(masked_mean(identity_angles,rotation_valid)*180/torch.pi),
                  'rotation_valid_samples':float((rotation_counts>0).sum()),
                  'rotation_valid_steps':float(rotation_counts.sum()),
                  'rotation_endpoint_valid_samples':float(rotation_valid[:,-1].sum()),

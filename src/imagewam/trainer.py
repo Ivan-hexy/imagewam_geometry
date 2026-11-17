@@ -127,6 +127,7 @@ class Wan22Trainer:
             lr=self.learning_rate,
             weight_decay=self.weight_decay,
             betas=(0.9, 0.95),
+            foreach=getattr(self.cfg, 'optimizer_foreach', None),
         )
         
         self.train_loader = self._build_loader(self.train_dataset, worker_init_fn=worker_init_fn)
@@ -1060,7 +1061,10 @@ class Wan22Trainer:
         self._set_dit_only_train_mode()
         fixed_eval_steps=list(getattr(self.cfg,'fixed_loss_eval_steps',[]))
         if self.global_step in fixed_eval_steps:
-            from .fixed_geometry_eval import run_fixed_eval
+            if getattr(self.cfg, 'fixed_eval_kind', 'geometry') == 'pose':
+                from .fixed_pose_eval import run_fixed_eval
+            else:
+                from .fixed_geometry_eval import run_fixed_eval
             run_fixed_eval(self)
 
         unwrapped_model = self.accelerator.unwrap_model(self.model)
@@ -1264,7 +1268,10 @@ class Wan22Trainer:
                             self._wandb_log(eval_payload)
 
                     if self.global_step in fixed_eval_steps:
-                        from .fixed_geometry_eval import run_fixed_eval
+                        if getattr(self.cfg, 'fixed_eval_kind', 'geometry') == 'pose':
+                            from .fixed_pose_eval import run_fixed_eval
+                        else:
+                            from .fixed_geometry_eval import run_fixed_eval
                         run_fixed_eval(self)
 
                     save_due = (self.save_every > 0 and self.global_step % self.save_every == 0) or self.global_step in list(getattr(self.cfg, 'checkpoint_steps', []))

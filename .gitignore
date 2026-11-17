@@ -35,3 +35,8 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Generated pose pilot data split and config
+.pose_pilot/
+configs/task/pose_geodesic200.yaml
+loss_validation.json
