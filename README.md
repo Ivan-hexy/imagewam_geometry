@@ -294,11 +294,22 @@ python scripts/check_setup.py --mode both --all-windows --require-weights
 
 计时包含数据读取、前后向、多卡通信、优化器和日志，排除模型加载、前 5 次预热、评测和保存检查点。原始统计见 [SPEED_REPORT.json](SPEED_REPORT.json)。这是 bs1 的短时速度参考，不能直接推算正式全局 batch 64 的耗时；节点的 6、7 卡有其他用户任务。
 
-W&B 已完成四组 SDK 离线记录检查，以及 both 在四卡 bs1 下的 3 次完整更新集成检查，正常写入指标并结束 run。在线上传需受托人的账号和网络，未代替受托人登录。
+W&B 已完成四组 SDK 离线记录检查，以及 both 在四卡 bs1 下的 3 次完整更新集成检查，正常写入指标并结束 run。在线上传需已授权的 W&B 账号和网络。**截至此记录尚未核验在线网页或云端曲线**；离线记录通过不等于在线可访问已验证。
 
 ## 9. 第七步：四组正式训练怎么启动
 
-共同配置：**4 卡 × 每卡 batch 8 × 梯度累计 2 = 全局 batch 64**；每卡 8 workers；40,000 次优化器更新；峰值学习率 2.5e-5；warmup 1000 次后 cosine 衰减；每 10,000 次保存一次检查点。前 1000 次学习率上升是预热行为。
+共同配置：**4 卡 × 每卡 batch 8 × 梯度累计 2 = 全局 batch 64**；每卡 8 workers；学习率计划和最大更新数均按 40,000 设置；峰值学习率 2.5e-5；warmup 1000 次后 cosine 衰减；每 10,000 次保存一次检查点。前 1000 次学习率上升是预热行为。
+
+**本次实际执行采用配对提前停止：四组保留 `max_steps=40000`，每一对的两个实验都达到至少 30,000 次更新，且 30k 检查点保存完成后，停止这一对。** 不把 `max_steps` 改成 30,000，否则 cosine 衰减计划会改变。
+
+| 执行批次 | 并行实验（各自同节点四卡） | 停止条件 | 统一评测检查点 |
+|---|---|---|---|
+| 第一对 | baseline ＋ only depth | 两者均达到至少 30k，且两份 30k 权重已完整保存 | 两者的 `step_030000.pt` |
+| 第二对 | only pose ＋ both | 两者均达到至少 30k，且两份 30k 权重已完整保存 | 两者的 `step_030000.pt` |
+
+同一对从各自的第 0 步同时启动；第一对结束并释放资源后，再启动第二对。较快实验可超过 30k；若先到 40k 则正常结束，继续等待较慢实验到 30k。最终四组统一用 **30k 权重**比较效果，不以不同步数的最后权重作公平对比。
+
+当前训练脚本**没有配对自动停止控制器**，W&B 只监控，不负责终止作业。受托人负责监控两个 run 的 `train/optimizer_step`，并在服务器确认 `weights/step_030000.pt` 已完成写入、日志报告保存成功之后再停止相关训练进程／作业；仅看到曲线到 30k 或文件刚出现不够。避免在保存过程中强制杀进程。停止前记录两组实际步数，交付两份 30k 权重、配置、日志和 W&B 链接。超过 30k 的较快实验尚未保存的中间更新无需作为本次比较结果。
 
 四组均从相同 FLUX.2、AE 和 ActionDiT 初始化开始，保持 `resume=null`、seed 42。不要拿其中一组训练后的策略权重初始化另一组消融。
 
@@ -330,19 +341,24 @@ export WANDB_ENTITY="你的W&B团队或用户名"
 
 服务器无法联网时可将启动参数改为 `wandb.mode=offline`，本地保存后再执行 `wandb sync /实际路径/wandb/offline-run-...`，但离线期间网页不能实时更新。默认在线模式不会静默切成离线。参考 [W&B 官方说明](https://github.com/wandb/wandb)。
 
-只有四张卡时，下面的循环**按顺序**跑四组，不会同时抢同一组 GPU：
+### 按两对并行启动
+
+需要同时有两组已分配且空闲的四卡资源（同一台八卡服务器，或两台各有四卡的服务器）。每个实验的四卡保持在同一节点；只有四张卡时无法执行上述配对并行计划。以下是非 Slurm 的八卡服务器示例，先确认 0–7 卡确实可用。
+
+在两个终端中分别执行相同的准备命令；`RUN_TAG` 两边保持一致，并为本次正式实验选择未使用的名称：
 
 ```bash
 set -euo pipefail
 source .venv/bin/activate
 source scripts/env.sh
-export CUDA_VISIBLE_DEVICES=0,1,2,3
 export GPU_PER_NODE=4
-export MASTER_PORT=29500
-RUN_TAG=$(date +%Y%m%d_%H%M%S)
+export RUN_TAG=pair30k_20261118_01
 : "${WANDB_ENTITY:?请先设置已授权的W&B团队或用户名}"
 mkdir -p "runs/formal_$RUN_TAG"
-for mode in baseline only_pose only_depth both; do
+
+run_one() {
+  local mode="$1" gpu_ids="$2" port="$3"
+  CUDA_VISIBLE_DEVICES="$gpu_ids" MASTER_PORT="$port" \
   bash scripts/train.sh "$mode" \
     batch_size=8 gradient_accumulation_steps=2 num_workers=8 \
     max_steps=40000 warmup_steps=1000 learning_rate=2.5e-5 \
@@ -352,10 +368,14 @@ for mode in baseline only_pose only_depth both; do
     +record_metrics_every_step=true \
     "output_dir=./runs/formal_$RUN_TAG/$mode" \
     2>&1 | tee "runs/formal_$RUN_TAG/$mode.log"
-done
+}
 ```
 
-八张空闲卡可分成 `0,1,2,3` 和 `4,5,6,7` 两组并发，每个进程组使用不同 `MASTER_PORT` 和输出目录，再分别运行余下实验。不要在同一组卡上同时启动两组训练。
+第一对：终端 A 运行 `run_one baseline 0,1,2,3 29500`，终端 B 同时运行 `run_one only_depth 4,5,6,7 29501`。
+
+确认第一对均达到 30k、30k 检查点完整保存，并停止和释放资源后，第二对：终端 A 运行 `run_one only_pose 0,1,2,3 29500`，终端 B 同时运行 `run_one both 4,5,6,7 29501`。终端因停止而退出时重新执行准备命令，保持同一个 `RUN_TAG`。每个实验目录只能用于对应的一次运行，不重复从第 0 步写入已有目录。
+
+以上命令本身最多运行到 40k，不会自动在慢实验到 30k 时终止另一个实验；停止由受托人按本节规则执行。无需再做冒烟或短测。
 
 Slurm 用户先申请同节点四卡和约 36 个 CPU 核心，再在作业内激活环境、`export GPU_PER_NODE=4` 并执行训练命令；保留调度器设置的可见卡。账号、分区、时间和内存限制按所在集群填写，本仓库不绑定 scut1 的账号。
 
@@ -373,7 +393,7 @@ runs/formal_<tag>/<mode>/
     weights/step_010000.pt
     weights/step_020000.pt
     ...
-    state/step_040000/            # 默认只保留最近一次完整训练 state
+    state/step_030000/            # 示例；默认只保留最近一次完整训练 state
 ```
 
 检查示例（替换实际路径）：
@@ -450,8 +470,11 @@ L40 实测：四组均在 4 卡、每卡 bs1、梯度累计 1 下完成 **3 次�
    预期789条、312139帧、311072个chunk32窗口，四组predict_translation均为false。
 5. 代码提供方已完成结构检查、四组bs1冒烟和测速，不再重复短测。
    登录已授权的W&B账号，四组写入imagewam_geometry项目，同一group、四个独立run。
-6. 环境和数据检查通过后，直接按四组相同的global batch64、40k更新、warmup1000、
+6. 环境和数据检查通过后，按global batch64、max_steps40000、warmup1000、
    lr2.5e-5、每10k保存、seed42启动，使用独立目录和端口；保持数据/源码固定。
+   第一对baseline+only_depth，第二对only_pose+both；每个实验同节点四卡。
+   每对并行运行，等两个实验都至少30k且30k权重完整保存后停止并释放资源。
+   保留40k学习率计划，统一评测四组30k权重。脚本没有自动配对停止，需你负责监控。
    only_pose仅监督旋转；only_depth不创建旋转分支；both保持原loss权重。
 7. 交付W&B项目及四组run链接，汇报配置、进度、指标和检查点路径。
    若训练失败先定位，不擅自改loss、冻结主干或更换优化器；不以训练loss代替成功率。
