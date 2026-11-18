@@ -1067,7 +1067,13 @@ def run_training(cfg: DictConfig):
         train_dataset=train_ds,
         val_dataset=val_ds,
     )
-    trainer.train()
+    try:
+        trainer.train()
+    except BaseException:
+        trainer._finish_wandb(exit_code=1)
+        raise
+    else:
+        trainer._finish_wandb()
     trainer.accelerator.wait_for_everyone()
     trainer.accelerator.end_training()
 

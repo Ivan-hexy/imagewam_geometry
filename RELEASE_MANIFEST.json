@@ -1,5 +1,5 @@
 {
-  "release": "2026-11-18-dataset789-four-ablations-rotation-only",
+  "release": "2026-11-18-four-ablations-wandb-handoff",
   "upstream_imagewam_commit": "5d4a341ed20a95cdb08f0293f3d44778b9a9e05a",
   "dataset": {
     "repo": "ivanhe666/simple_rgbd",
@@ -33,16 +33,20 @@
       "sha256": "de463dbda031f5b7891e7d767b649306cd6b3f77711610bcbaf324ec445bca4f"
     },
     "README.md": {
-      "bytes": 24704,
-      "sha256": "cc152da69bf1e7a5fc4f9bc0292e1d7dad05ad5c16ea1ff7d42086de7603de43"
+      "bytes": 26515,
+      "sha256": "090035ae8dac439d2bcb54e4179a96e3305e736e2038c73755ed5a826e0b2f1a"
+    },
+    "SPEED_REPORT.json": {
+      "bytes": 6433,
+      "sha256": "664191321999c15cafcc0b0772a3f7c4d66a3e03441b4bb7f5435047fe4fae9b"
     },
     "THIRD_PARTY_NOTICES.md": {
       "bytes": 1120,
       "sha256": "48ee5744d6a6dc36f58c635a08a48e2f249f33d9b9b122cc253e77582cdc629d"
     },
     "VALIDATION.json": {
-      "bytes": 11633,
-      "sha256": "cc0f69f1608b40e0bbc29b74a698825fd268460f7df06e82d97908fc3ff6d4f7"
+      "bytes": 17007,
+      "sha256": "ccc7352deaf29cd7341b3116d972f43c886c3afa828e28bc4340faea52d17922"
     },
     "configs/data/simple_rgbd.yaml": {
       "bytes": 547,
@@ -77,8 +81,8 @@
       "sha256": "ac437e27f79391d94d746761df992ec5d578415217883495e7f7850afba85db6"
     },
     "configs/task/simple_rgbd_global_depth.yaml": {
-      "bytes": 1631,
-      "sha256": "47a7cc58b749ec3ab05c281332af39f7266293fc80cba357f1de25b68e9d22c1"
+      "bytes": 1659,
+      "sha256": "e0385574fd529e7690a29908c4c9c52c734559c09d4a5545dc6a3dc174c309b5"
     },
     "configs/train.yaml": {
       "bytes": 1672,
@@ -385,16 +389,16 @@
       "sha256": "31b3fb9f844a76f5db5af4854e14802aae640b85b61d0de03a4b53b52515abb7"
     },
     "src/imagewam/runtime.py": {
-      "bytes": 50104,
-      "sha256": "65daa79511885dab7f51da08eace8fa08d581efa793e3c13b8225e31f110d041"
+      "bytes": 50242,
+      "sha256": "d213ab14247721251e58a005c6f8056546a2ccced273dcd7f648ca8f6e5bb700"
     },
     "src/imagewam/simple_finetune.py": {
       "bytes": 2535,
       "sha256": "0e665095fbab2879d0cc7622c7fc92b1b02883d40ab1ec3c256b2292e48b6054"
     },
     "src/imagewam/trainer.py": {
-      "bytes": 63789,
-      "sha256": "c0074189c5b1b315bb149cb0c8efdb7f28044b19adf474f790885b680d6f9e01"
+      "bytes": 66069,
+      "sha256": "567e9f45cce760229ed335fd3f1b90313fc09bdb2b52ed5637f258aaeba8528b"
     },
     "src/imagewam/utils/__init__.py": {
       "bytes": 96,

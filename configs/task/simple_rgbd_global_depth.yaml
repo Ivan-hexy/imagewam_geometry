@@ -50,5 +50,6 @@ model:
     predict_translation: false
     xyz_beta: 0.1
 wandb:
-  enabled: false
+  enabled: true
+  project: imagewam_geometry
   name: simple_rgbd_global_depth_rotation32

@@ -11,7 +11,7 @@ import time
 import numpy as np
 import torch
 from accelerate import Accelerator
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from PIL import Image
 from torch.optim.lr_scheduler import ConstantLR, CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader
@@ -181,6 +181,24 @@ class Wan22Trainer:
                 "wandb logging is enabled in config (`wandb.enabled=true`) but wandb is not installed."
             ) from e
 
+        # Record reproducibility settings, not environment variables or credentials.
+        run_config = {key: OmegaConf.select(self.cfg, key) for key in (
+            'batch_size', 'gradient_accumulation_steps', 'max_steps', 'warmup_steps',
+            'learning_rate', 'seed', 'num_workers', 'mixed_precision',
+            'model.loss.lambda_video', 'model.loss.lambda_action',
+        )}
+        run_config['world_size'] = self.accelerator.num_processes
+        run_config['global_batch_size'] = self.batch_size * self.gradient_accumulation_steps * self.accelerator.num_processes
+        geometry = OmegaConf.select(self.cfg, 'model.geometry_supervision')
+        if geometry is not None:
+            run_config['geometry'] = {key: geometry.get(key) for key in (
+                'enabled', 'pose_enabled', 'depth_enabled', 'predict_translation',
+                'horizon', 'grid', 'resolution', 'lambda_xyz', 'lambda_rotation',
+            )}
+            run_config = OmegaConf.to_container(OmegaConf.create(run_config), resolve=True)
+        release_file = Path(__file__).resolve().parents[2] / 'configs/dataset_release.json'
+        if release_file.exists():
+            run_config['dataset_revision'] = json.loads(release_file.read_text())['revision']
         self.wandb_run = wandb.init(
             entity=self.cfg.wandb.workspace,
             project=self.cfg.wandb.project,
@@ -188,7 +206,12 @@ class Wan22Trainer:
             group=None if self.cfg.wandb.group in (None, "null", "") else str(self.cfg.wandb.group),
             mode=self.cfg.wandb.mode,
             dir=self.output_dir,
+            config=run_config,
         )
+        self.wandb_run.define_metric('train/optimizer_step')
+        self.wandb_run.define_metric('*', step_metric='train/optimizer_step')
+        if self.cfg.wandb.mode == 'online' and self.wandb_run.url:
+            logger.info('W&B dashboard: %s', self.wandb_run.url)
         logger.info(
             "Initialized wandb run: workspace=%s project=%s name=%s",
             self.cfg.wandb.workspace,
@@ -199,12 +222,12 @@ class Wan22Trainer:
     def _wandb_log(self, payload: dict):
         if self.wandb_run is None:
             return
-        self.wandb_run.log(payload, step=self.global_step)
+        self.wandb_run.log({'train/optimizer_step': self.global_step, **payload}, step=self.global_step)
 
-    def _finish_wandb(self):
+    def _finish_wandb(self, exit_code=0):
         if self.wandb_run is None:
             return
-        self.wandb_run.finish()
+        self.wandb_run.finish(exit_code=exit_code)
         self.wandb_run = None
 
     def _build_loader(self, dataset, worker_init_fn=None):
@@ -1204,7 +1227,7 @@ class Wan22Trainer:
                         description += "lr=%.2e speed=%.2f step/s, %.2f samples/s eta=%s" % (
                             current_lr,
                             steps_per_sec,
-                            steps_per_sec * self.batch_size * self.accelerator.num_processes,
+                            steps_per_sec * self.batch_size * self.accelerator.num_processes * self.gradient_accumulation_steps,
                             eta_str,
                         )
                         logger.info(description)
@@ -1214,8 +1237,14 @@ class Wan22Trainer:
                             "train/grad_norm": global_grad_norm,
                             "train/lr": current_lr,
                             "performance/steps_per_sec": steps_per_sec,
-                            "performance/samples_per_sec": steps_per_sec * self.batch_size * self.accelerator.num_processes,
+                            "performance/samples_per_sec": steps_per_sec * self.batch_size * self.accelerator.num_processes * self.gradient_accumulation_steps,
+                            "performance/seconds_per_update": 1.0 / max(steps_per_sec, 1e-12),
                         }
+                        for group_index, param_group in enumerate(self.optimizer.param_groups):
+                            wandb_payload[f'train/lr_group_{group_index}'] = float(param_group['lr'])
+                        if torch.cuda.is_available():
+                            wandb_payload['memory/peak_allocated_gib_max_rank'] = float(peaks[:, 0].max())
+                            wandb_payload['memory/peak_reserved_gib_max_rank'] = float(peaks[:, 1].max())
                         for key, value in global_loss_metrics.items():
                             wandb_payload[f"train/{key}"] = value
                         self._wandb_log(wandb_payload)

@@ -300,5 +300,207 @@
     "Existing server environment reused; clean dependency installation not tested.",
     "3 optimizer updates test execution, not convergence or steady-state speed.",
     "No 40k runs or simulator rollouts performed for this release."
-  ]
+  ],
+  "speed_benchmark": {
+    "report": "SPEED_REPORT.json",
+    "all_four_passed": true,
+    "optimizer_updates_per_mode": 30
+  },
+  "wandb_sdk_validation": {
+    "passed": true,
+    "rank0_only": true,
+    "results": [
+      {
+        "mode": "baseline",
+        "passed": true,
+        "sdk_mode": "offline",
+        "logged_steps": [
+          1,
+          2
+        ],
+        "config": {
+          "batch_size": 1,
+          "gradient_accumulation_steps": 1,
+          "max_steps": 40000,
+          "warmup_steps": 1000,
+          "learning_rate": 2.5e-05,
+          "seed": 42,
+          "num_workers": 8,
+          "mixed_precision": "bf16",
+          "model.loss.lambda_video": 0.5,
+          "model.loss.lambda_action": 1,
+          "world_size": 4,
+          "global_batch_size": 4,
+          "geometry": {
+            "grid": [
+              11,
+              20
+            ],
+            "enabled": false,
+            "predict_translation": false,
+            "lambda_xyz": 0.5,
+            "horizon": 32,
+            "resolution": [
+              256,
+              448
+            ],
+            "pose_enabled": true,
+            "depth_enabled": true,
+            "lambda_rotation": 5
+          },
+          "dataset_revision": "1aa446155d6597e91169872a965557640fb31871"
+        }
+      },
+      {
+        "mode": "only_pose",
+        "passed": true,
+        "sdk_mode": "offline",
+        "logged_steps": [
+          1,
+          2
+        ],
+        "config": {
+          "batch_size": 1,
+          "gradient_accumulation_steps": 1,
+          "max_steps": 40000,
+          "warmup_steps": 1000,
+          "learning_rate": 2.5e-05,
+          "seed": 42,
+          "num_workers": 8,
+          "mixed_precision": "bf16",
+          "model.loss.lambda_video": 0.5,
+          "model.loss.lambda_action": 1,
+          "world_size": 4,
+          "global_batch_size": 4,
+          "geometry": {
+            "lambda_xyz": 0,
+            "pose_enabled": true,
+            "resolution": [
+              256,
+              448
+            ],
+            "depth_enabled": false,
+            "lambda_rotation": 5,
+            "grid": [
+              11,
+              20
+            ],
+            "horizon": 32,
+            "enabled": true,
+            "predict_translation": false
+          },
+          "dataset_revision": "1aa446155d6597e91169872a965557640fb31871"
+        }
+      },
+      {
+        "mode": "only_depth",
+        "passed": true,
+        "sdk_mode": "offline",
+        "logged_steps": [
+          1,
+          2
+        ],
+        "config": {
+          "batch_size": 1,
+          "gradient_accumulation_steps": 1,
+          "max_steps": 40000,
+          "warmup_steps": 1000,
+          "learning_rate": 2.5e-05,
+          "seed": 42,
+          "num_workers": 8,
+          "mixed_precision": "bf16",
+          "model.loss.lambda_video": 0.5,
+          "model.loss.lambda_action": 1,
+          "world_size": 4,
+          "global_batch_size": 4,
+          "geometry": {
+            "grid": [
+              11,
+              20
+            ],
+            "pose_enabled": false,
+            "lambda_rotation": 0,
+            "enabled": true,
+            "depth_enabled": true,
+            "horizon": 32,
+            "predict_translation": false,
+            "resolution": [
+              256,
+              448
+            ],
+            "lambda_xyz": 0.5
+          },
+          "dataset_revision": "1aa446155d6597e91169872a965557640fb31871"
+        }
+      },
+      {
+        "mode": "both",
+        "passed": true,
+        "sdk_mode": "offline",
+        "logged_steps": [
+          1,
+          2
+        ],
+        "config": {
+          "batch_size": 1,
+          "gradient_accumulation_steps": 1,
+          "max_steps": 40000,
+          "warmup_steps": 1000,
+          "learning_rate": 2.5e-05,
+          "seed": 42,
+          "num_workers": 8,
+          "mixed_precision": "bf16",
+          "model.loss.lambda_video": 0.5,
+          "model.loss.lambda_action": 1,
+          "world_size": 4,
+          "global_batch_size": 4,
+          "geometry": {
+            "grid": [
+              11,
+              20
+            ],
+            "lambda_rotation": 5,
+            "predict_translation": false,
+            "enabled": true,
+            "horizon": 32,
+            "resolution": [
+              256,
+              448
+            ],
+            "pose_enabled": true,
+            "depth_enabled": true,
+            "lambda_xyz": 0.5
+          },
+          "dataset_revision": "1aa446155d6597e91169872a965557640fb31871"
+        }
+      }
+    ],
+    "limits": "SDK offline logging verified; no online account or network upload tested."
+  },
+  "wandb_training_integration": {
+    "passed": true,
+    "experiment": "both",
+    "gpu_count": 4,
+    "per_gpu_batch_size": 1,
+    "optimizer_updates": 3,
+    "wandb_mode": "offline",
+    "wandb_history_steps": [
+      1,
+      2,
+      3
+    ],
+    "checked_history_metrics": [
+      "train/loss",
+      "train/loss_action_raw",
+      "train/loss_video_raw",
+      "train/loss_global_xyz",
+      "train/loss_relative_rotation",
+      "train/lr_group_0",
+      "train/lr_group_1",
+      "performance/seconds_per_update",
+      "memory/peak_allocated_gib_max_rank"
+    ],
+    "completed_normally": true,
+    "limits": "Offline W&B file inspected after normal finish; online authentication/upload not tested."
+  }
 }
