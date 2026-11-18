@@ -1,0 +1,183 @@
+{
+  "date": "2026-11-18",
+  "environment": "Ivanl40, isolated source directory; cleared inherited dataset/model path variables; existing data and weights linked at documented defaults; existing Python 3.11 training environment reused",
+  "config_and_default_paths": {
+    "baseline": {
+      "mode": "baseline",
+      "chunk": 32,
+      "pose_enabled": false,
+      "depth_enabled": false,
+      "pose_tokens": 0,
+      "geometry_tokens": 0,
+      "translation_enabled": false,
+      "config_passed": true,
+      "paths": {
+        "dataset": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop",
+        "text_cache": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/qwen3",
+        "normalization": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/all_verified_stats.json",
+        "flux2": "checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors",
+        "autoencoder": "checkpoints/flux2/FLUX.2-dev/ae.safetensors",
+        "action_init": "checkpoints/action_dit_init.pt",
+        "depth_pro": null
+      },
+      "training": {
+        "batch_size": 8,
+        "gradient_accumulation_steps": 2,
+        "num_workers": 8,
+        "max_steps": 40000,
+        "warmup_steps": 1000,
+        "save_every": 10000
+      }
+    },
+    "only_pose": {
+      "mode": "only_pose",
+      "chunk": 32,
+      "pose_enabled": true,
+      "depth_enabled": false,
+      "pose_tokens": 32,
+      "geometry_tokens": 0,
+      "translation_enabled": false,
+      "config_passed": true,
+      "paths": {
+        "dataset": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop",
+        "text_cache": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/qwen3",
+        "normalization": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/all_verified_stats.json",
+        "flux2": "checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors",
+        "autoencoder": "checkpoints/flux2/FLUX.2-dev/ae.safetensors",
+        "action_init": "checkpoints/action_dit_init.pt",
+        "depth_pro": null
+      },
+      "training": {
+        "batch_size": 8,
+        "gradient_accumulation_steps": 2,
+        "num_workers": 8,
+        "max_steps": 40000,
+        "warmup_steps": 1000,
+        "save_every": 10000
+      }
+    },
+    "only_depth": {
+      "mode": "only_depth",
+      "chunk": 32,
+      "pose_enabled": false,
+      "depth_enabled": true,
+      "pose_tokens": 0,
+      "geometry_tokens": 220,
+      "translation_enabled": false,
+      "config_passed": true,
+      "paths": {
+        "dataset": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop",
+        "text_cache": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/qwen3",
+        "normalization": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/all_verified_stats.json",
+        "flux2": "checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors",
+        "autoencoder": "checkpoints/flux2/FLUX.2-dev/ae.safetensors",
+        "action_init": "checkpoints/action_dit_init.pt",
+        "depth_pro": "checkpoints/depth_pro/depth_pro.pt"
+      },
+      "training": {
+        "batch_size": 8,
+        "gradient_accumulation_steps": 2,
+        "num_workers": 8,
+        "max_steps": 40000,
+        "warmup_steps": 1000,
+        "save_every": 10000
+      }
+    },
+    "both": {
+      "mode": "both",
+      "chunk": 32,
+      "pose_enabled": true,
+      "depth_enabled": true,
+      "pose_tokens": 32,
+      "geometry_tokens": 220,
+      "translation_enabled": false,
+      "config_passed": true,
+      "paths": {
+        "dataset": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop",
+        "text_cache": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/qwen3",
+        "normalization": "data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache/all_verified_stats.json",
+        "flux2": "checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors",
+        "autoencoder": "checkpoints/flux2/FLUX.2-dev/ae.safetensors",
+        "action_init": "checkpoints/action_dit_init.pt",
+        "depth_pro": "checkpoints/depth_pro/depth_pro.pt"
+      },
+      "training": {
+        "batch_size": 8,
+        "gradient_accumulation_steps": 2,
+        "num_workers": 8,
+        "max_steps": 40000,
+        "warmup_steps": 1000,
+        "save_every": 10000
+      }
+    }
+  },
+  "readme_bash_blocks_syntax_passed": 18,
+  "readme_formal_function_four_modes_dry_run_passed": true,
+  "hydra_overrides_reach_preflight": true,
+  "missing_overridden_checkpoint_rejected_before_training_launch": true,
+  "existing_action_dit_init_default_skip_passed": true,
+  "dataset": {
+    "dataset_revision": "1aa446155d6597e91169872a965557640fb31871",
+    "episodes": 789,
+    "frames": 312139,
+    "actual_windows": 311072,
+    "sampled_episodes": [
+      0,
+      3,
+      6,
+      15,
+      30,
+      46,
+      55,
+      60
+    ],
+    "sampled_first_and_last_windows_passed": true
+  },
+  "cpu_branches_and_attention": {
+    "passed": true,
+    "actual_constructor_and_depth_decoder_checked": true,
+    "masked_rotation_gradients_zero": true,
+    "both_legacy_parity": null,
+    "narrow_transformer": {
+      "baseline": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "only_pose": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "only_depth": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "both": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      }
+    },
+    "note": "CPU FP32 narrow 25-layer test; no full-size GPU convergence claim"
+  },
+  "dependency_resolution": {
+    "passed": true,
+    "tool": "uv 0.13.9 pip install --dry-run --target EMPTY -e .[shared]",
+    "resolved_packages": 121,
+    "full_fresh_install_performed": false
+  },
+  "download_cli": {
+    "isolated_install": "modelscope-hub==0.7.1",
+    "login_and_download_options_verified": true,
+    "four_pinned_metadata_files_downloaded_and_hash_matched": true
+  },
+  "limits": [
+    "No new full-size GPU training in this setup audit; earlier four-mode full optimizer-update tests are in VALIDATION.json.",
+    "Reused existing large dataset and model files, not a full fresh download.",
+    "Dependency resolution is not a full fresh training environment installation.",
+    "W&B authenticated upload from L40 failed with HTTP 403; online curves are not verified.",
+    "No formal training jobs or source data modified."
+  ]
+}

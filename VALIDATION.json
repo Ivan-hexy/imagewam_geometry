@@ -502,5 +502,20 @@
     ],
     "completed_normally": true,
     "limits": "Offline W&B file inspected after normal finish; online authentication/upload not tested."
+  },
+  "setup_and_readme_audit": {
+    "report": "SETUP_AUDIT.json",
+    "passed": true,
+    "new_full_size_training": false
+  },
+  "wandb_online_attempt": {
+    "upload_finished": false,
+    "cloud_readback_verified": false,
+    "authenticated_api_http_status": 403,
+    "response_kind": "text/html; charset=UTF-8",
+    "note": "Authenticated request failed before uploading any metrics.",
+    "project_page_verified": true,
+    "project_url": "https://forge.coreweave.com/wandb/ivanhe191821-imagewam/imagewam_geometry",
+    "temporary_local_and_remote_credential_files_deleted": true
   }
 }

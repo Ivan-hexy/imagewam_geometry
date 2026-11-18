@@ -5,7 +5,7 @@ mode="${1:-}"; [[ $# -gt 0 ]] && shift
 case "$mode" in baseline|only_pose|only_depth|both|geometry) ;; *) echo 'Usage: bash scripts/train.sh baseline|only_pose|only_depth|both [Hydra overrides]' >&2; exit 2;; esac
 gpus="${GPU_PER_NODE:-4}"
 if [[ "${DRY_RUN:-false}" != true ]]; then
-  python scripts/check_setup.py --mode "$mode" --require-weights
+  python scripts/check_setup.py --mode "$mode" --require-weights -- "$@"
 fi
 cmd=(python -m accelerate.commands.launch
   --config_file scripts/accelerate_configs/accelerate_zero1_ds.yaml

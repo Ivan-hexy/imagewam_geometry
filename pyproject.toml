@@ -36,7 +36,6 @@ dependencies = [
   "torchvision==0.22.1",
   "tqdm==4.66.5",
   "transformers==4.56.1", # tested FLUX.2 environment
-  # "transformers==4.56.1", # Use this line if using flux
   "typing-extensions==4.15.0",
   "wandb==0.23.1",
   "h5py==3.16.0"

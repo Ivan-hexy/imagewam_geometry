@@ -29,7 +29,7 @@ def action_windows(valid, obs, transition, action, synthetic, horizon):
 
 
 class SimpleRGBDDataset(Dataset):
-    def __init__(self,root,text_cache_dir,horizon=16,video_size=(176,320),geometry_resolution=(256,448),
+    def __init__(self,root,text_cache_dir,horizon=32,video_size=(176,320),geometry_resolution=(256,448),
                  split='all',max_episodes=None,norm_stats_path=None,native_resolution=False,episode_indices=None,
                  tuning_manifest=None,tuning_partition='train',**unused):
         if unused: raise ValueError(f'Unexpected dataset options: {list(unused)}')

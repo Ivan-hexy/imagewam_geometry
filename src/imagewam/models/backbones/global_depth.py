@@ -40,7 +40,7 @@ class GlobalDepthRegisters(nn.Module):
     def __init__(self,cfg,video_dim,action_dim):
         super().__init__()
         self.cfg=dict(cfg); self.grid=tuple(cfg.get('grid',[11,20])); self.resolution=tuple(cfg.get('resolution',[256,448]))
-        self.horizon=int(cfg.get('horizon',16)); n=self.grid[0]*self.grid[1]
+        self.horizon=int(cfg.get('horizon',32)); n=self.grid[0]*self.grid[1]
         self.pose_enabled=bool(cfg.get('pose_enabled',True))
         self.depth_enabled=bool(cfg.get('depth_enabled',True))
         if not (self.pose_enabled or self.depth_enabled):
@@ -175,8 +175,8 @@ class GlobalDepthRegisters(nn.Module):
             metrics.update(extra)
         if getattr(self,'audit_components',False): self.last_loss_components=(xyz,rot,trans)
         pose_loss=rot+trans
-        pose_weight=self.cfg.get('lambda_pose',self.cfg.get('lambda_rotation',.05))
-        total=self.cfg.get('lambda_xyz',.1)*xyz+pose_weight*pose_loss
+        pose_weight=self.cfg.get('lambda_pose',self.cfg.get('lambda_rotation',5.0))
+        total=self.cfg.get('lambda_xyz',.5)*xyz+pose_weight*pose_loss
         metrics.update(loss_global_xyz=float(xyz.detach()),loss_relative_rotation=float(rot.detach()),
                        loss_relative_pose=float(pose_loss.detach()),loss_relative_pose_weighted=float((pose_weight*pose_loss).detach()),
                        loss_geometry=float(total.detach()),pose_branch_enabled=float(self.pose_enabled),depth_branch_enabled=float(self.depth_enabled))

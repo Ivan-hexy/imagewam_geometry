@@ -22,6 +22,7 @@ baseline 使用原 ImageWAM 主干，不创建辅助模块。其余三组在同�
 ### 模型与监督约定
 
 - 图像主干：FLUX.2 **klein-base-4B**；动作主干：ActionDiT，动作维度 36，机器人 state 维度 32。
+- 四组实际预测长度均为 32。底层 `max_action_horizon: 64` 是可容纳的最大长度，不是本次采样窗口或动作 token 数量。
 - 当前文本特征、当前 RGB 和当前机器人 state 是条件；相机位姿和深度 GT 只作为训练标签。
 - RGB 输入 **176×320**；全局深度／XYZ 输出 **256×448**。原始数据为 360×640，加载器按输出尺寸缩放相机内参。
 - 全局几何 tokens 为 11×20=220 个，取第 5、10、15、20、25 层状态，经多尺度适配层和 Depth Pro 解码器预测米制深度，再用内参反投影得到 XYZ。
@@ -29,6 +30,26 @@ baseline 使用原 ImageWAM 主干，不创建辅助模块。其余三组在同�
 - 旋转头输出连续 6D 表示，再转换成旋转矩阵；`L_rotation = ||R_pred - R_gt||_F² / 8`。日志中的角度误差单位是度，和训练 loss 的数值不同。
 - 图像、动作使用各自 flow-matching 目标的 MSE，并保留原 scheduler 权重；不是直接对 RGB 像素做 MSE。
 - 原图文和动作 token 的时间调制沿用 baseline；辅助 tokens 使用零时刻调制。没有 geometry 额外的整层激活重计算，原有注意力和深度解码器的 checkpoint 策略保留。
+
+### both 的实际注意力关系与损失
+
+记 `C` 为当前文本、RGB 和 state 条件，`P` 为 FLUX.2 侧的 32 个旋转 tokens，`F` 为训练时加噪的未来图像 tokens，`G` 为 ActionDiT 侧的 220 个全局几何 tokens，`A` 为 32 个加噪动作 tokens。state 编码后拼在有效文本条件后，不作为一个独立的 ActionDiT 输入分支。
+
+下表每行表示该组查询可以读取哪些组的 K/V；这是全部 25 层使用的关系，并非按表格顺序串行执行：
+
+| 查询 tokens | 可读取的 K/V |
+|---|---|
+| C | C |
+| P | C、P |
+| F | C、P、F |
+| G | C、P、G |
+| A | C、P、G、A |
+
+因此动作可读取几何，几何不能反读动作；P、G、A 都不能直接读取 F。全部层参与条件注意力，但深度头只取上述五层 G 的状态。P、G 是可学习寄存 tokens，不加扩散噪声；图像和动作分支分别学习 flow-matching 去噪。
+
+Depth Pro 只复用预训练解码器和深度头，未使用其图像编码器。几何适配层把 G 转成多尺度特征；解码器可训练，学习率为主学习率的 0.1 倍。深度经过平滑正值转换，再按几何输出分辨率对应的内参反投影：`XYZ = Z × K⁻¹[u+0.5, v+0.5, 1]ᵀ`。这里是未来端点相机坐标系中的 XYZ，不需要预测旋转来变换到当前帧，也没有额外的 Z 损失。
+
+`L_both = 0.5 L_image + L_action + 0.5 L_XYZ + 5 L_rotation`。XYZ 对三个坐标分量取 Smooth L1 平均，再对每个样本的有效像素平均；旋转监督 `R_tᵀ R_(t+i)`（i=1…32），对每个样本的有效未来时刻平均。两项再在有有效标签的样本间平均。补齐动作、无效深度和缺失未来旋转不参与相应损失；图像、动作仍保留原有 scheduler 的训练权重。日志中的 `loss_relative_pose` 在当前配置下等于旋转损失，不是额外加一项，也不包含平移。
 
 ### chunk 32 和尾部处理
 
@@ -101,6 +122,7 @@ git pull --ff-only
 ```bash
 # 如果服务器尚无 uv，先安装；已有则跳过这一行。
 python3 -m pip install --user uv
+export PATH="$HOME/.local/bin:$PATH"
 uv venv --python 3.11
 source .venv/bin/activate
 uv pip install -e '.[shared]'
@@ -190,7 +212,7 @@ source scripts/env.sh
 | Depth Pro 解码器初始化 | [Apple 官方文件](https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt) | `checkpoints/depth_pro/depth_pro.pt` | only depth、both |
 | ActionDiT 初始化 | 本仓库从 FLUX.2 权重生成 | `checkpoints/action_dit_init.pt` | 四组 |
 
-使用 **klein-base-4B**，不要换成蒸馏版 klein-4B、9B 或完整 dev 主干。`simple9` 是历史文件名，不表示当前有九个任务。
+使用 **klein-base-4B**，不要换成蒸馏版 klein-4B、9B 或完整 dev 主干。ActionDiT 的统一默认文件名为 `action_dit_init.pt`，环境脚本、配置和初始化命令使用同一个路径；文件名本身不决定模型结构。
 
 如 Hugging Face 页面要求接受条款或申请权限，先在对应模型页完成，再使用自己的账号登录：
 
@@ -244,7 +266,9 @@ for mode in baseline only_pose only_depth both; do
 done
 ```
 
-输出应全部为 `config_passed: true`、`translation_enabled: false`，tokens 数量与第一节表格一致。`--config-only` 不读取数据；`--require-weights` 检查文件存在，不代表完整加载模型已通过。
+输出应全部为 `config_passed: true`、`translation_enabled: false`，tokens 数量与第一节表格一致。检查输出的 `paths` 和 `training`，确认指向本次数据、缓存和 `action_dit_init.pt`，而不是 shell 或旧 `.env.local` 留下的路径。`--config-only` 不读取数据；`--require-weights` 检查权重文件存在且非空，不代表完整加载模型已通过。
+
+`train.sh` 启动前会使用同一组 Hydra 覆盖参数执行检查；手动核对覆盖参数时使用 `python scripts/check_setup.py --mode both --config-only --require-weights -- batch_size=8 gradient_accumulation_steps=2`。更改过默认路径的旧终端应退出重开，并更新 `.env.local` 后再加载环境。
 
 再检查真实数据、缓存和全部采样窗口：
 
@@ -294,7 +318,7 @@ python scripts/check_setup.py --mode both --all-windows --require-weights
 
 计时包含数据读取、前后向、多卡通信、优化器和日志，排除模型加载、前 5 次预热、评测和保存检查点。原始统计见 [SPEED_REPORT.json](SPEED_REPORT.json)。这是 bs1 的短时速度参考，不能直接推算正式全局 batch 64 的耗时；节点的 6、7 卡有其他用户任务。
 
-W&B 已完成四组 SDK 离线记录检查，以及 both 在四卡 bs1 下的 3 次完整更新集成检查，正常写入指标并结束 run。在线上传需已授权的 W&B 账号和网络。**截至此记录尚未核验在线网页或云端曲线**；离线记录通过不等于在线可访问已验证。
+W&B 已完成四组 SDK 离线记录检查，以及 both 在四卡 bs1 下的 3 次完整更新集成检查，正常写入指标并结束 run。网页项目已确认，但 L40 API 上传返回 403，云端曲线未验证成功，详见第 9 节；离线记录通过不等于在线上传成功。
 
 ## 9. 第七步：四组正式训练怎么启动
 
@@ -329,6 +353,7 @@ source .venv/bin/activate
 wandb login
 # 替换成已授权的 W&B 团队名或用户名，不是 GitHub 用户名。
 export WANDB_ENTITY="你的W&B团队或用户名"
+export WANDB_MODE=online
 ```
 
 下面的正式训练命令用同一个 `group` 汇总四组、用 `baseline / only_pose / only_depth / both` 区分 run。日志会打印 `W&B dashboard: ...`，受托人将项目链接和四个 run 链接交给你即可。W&B 页面可以实时叠加比较：
@@ -339,7 +364,9 @@ export WANDB_ENTITY="你的W&B团队或用户名"
 
 横轴为 `train/optimizer_step`；默认每 10 次更新上传一次训练指标，只有 rank 0 创建 run。超参数、全局 batch、几何分支开关和固定数据 revision 自动记录在 run config。速度指标是本次启动后累计平均值，包含前几步预热；精确测速使用上一节独立结果。不会自动上传训练数据、权重或视频。
 
-服务器无法联网时可将启动参数改为 `wandb.mode=offline`，本地保存后再执行 `wandb sync /实际路径/wandb/offline-run-...`，但离线期间网页不能实时更新。默认在线模式不会静默切成离线。参考 [W&B 官方说明](https://github.com/wandb/wandb)。
+可把 `WANDB_ENTITY` 和 `WANDB_MODE`（不是 API Key）写入 `.env.local`，让两个终端加载同一配置。服务器无法联网时显式设置 `export WANDB_MODE=offline`，下方启动函数会传给 `wandb.mode`；本地保存后可执行 `wandb sync /实际路径/wandb/offline-run-...`。离线期间网页不能实时更新，默认在线模式不会静默切成离线。参考 [W&B 官方说明](https://github.com/wandb/wandb)。
+
+在线核验状态：已在网页创建并确认私有项目 [ivanhe191821-imagewam/imagewam_geometry](https://forge.coreweave.com/wandb/ivanhe191821-imagewam/imagewam_geometry)，但 L40 使用临时凭据请求 W&B API 返回 HTTP 403，尚未成功上传在线曲线；临时凭据已删除。SDK 离线记录和四卡训练写日志已验证。受托服务器要使用有该团队权限的账号，且能访问 W&B API；仅浏览器登录成功不代表服务器可以上传。若暂用离线模式，需要明确告知委托人。
 
 ### 按两对并行启动
 
@@ -363,7 +390,7 @@ run_one() {
     batch_size=8 gradient_accumulation_steps=2 num_workers=8 \
     max_steps=40000 warmup_steps=1000 learning_rate=2.5e-5 \
     save_every=10000 log_every=10 seed=42 resume=null \
-    wandb.enabled=true wandb.mode=online wandb.project=imagewam_geometry \
+    wandb.enabled=true "wandb.mode=${WANDB_MODE:-online}" wandb.project=imagewam_geometry \
     "wandb.workspace=$WANDB_ENTITY" "wandb.group=$RUN_TAG" "wandb.name=$mode" \
     +record_metrics_every_step=true \
     "output_dir=./runs/formal_$RUN_TAG/$mode" \
@@ -399,8 +426,8 @@ runs/formal_<tag>/<mode>/
 检查示例（替换实际路径）：
 
 ```bash
-tail -n 3 runs/formal_<tag>/both/metrics.jsonl
-ls -lh runs/formal_<tag>/both/checkpoints/weights
+tail -n 3 "runs/formal_$RUN_TAG/both/metrics.jsonl"
+ls -lh "runs/formal_$RUN_TAG/both/checkpoints/weights"
 ```
 
 关注 `step`、`loss_action_raw`、`loss_video_raw`。有旋转分支时看 `loss_relative_rotation`、`rotation_error_deg`、`rotation_endpoint_error_deg`；有深度分支时看 `loss_global_xyz`、`depth_abs_error_m`。辅助指标按分支出现；被关闭的辅助损失为零。不能因为各组总 loss 的项数不同，就直接比较总 loss 判断哪个更好。
@@ -452,6 +479,8 @@ execute(actions[:16])
 已执行的验证包括新版元数据与缓存核对、789 条数据全部窗口枚举、八个任务首尾窗口解码、分支构建、真实 Depth Pro 解码器的 loss/梯度检查、窄版 25 层注意力／KV 缓存检查。完整 both 的 loss 和输入梯度已与 `bb16ef2` 旧实现核对一致。
 
 L40 实测：四组均在 4 卡、每卡 bs1、梯度累计 1 下完成 **3 次优化器更新**，loss 有限且无 OOM；测试使用已有环境，未启用 CPU 优化器卸载。记录见 [VALIDATION.json](VALIDATION.json)。另做的 30 步速度统计见第 8 节；上述结果均不代表收敛。
+
+README／默认路径复核见 [SETUP_AUDIT.json](SETUP_AUDIT.json)：在 L40 独立目录清除旧路径环境变量后，四组默认配置与启动命令、789 条轨迹的全部窗口和八个任务首尾样本、分支与 25 层 KV 检查均通过。空安装目标的依赖解析通过；独立安装 `modelscope-hub==0.7.1` 后，成功下载并核对四个固定版本元数据／缓存文件。复用了已有大体积数据和权重，没有重复下载整套数据或启动新的正式训练。
 
 完整环境从零联网安装、四组 40k 收敛和模拟器成功率尚未验证；没有进行的检查不能由 Codex 推断为已通过。
 
