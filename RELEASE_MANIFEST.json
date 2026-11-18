@@ -17,8 +17,8 @@
   },
   "files": {
     ".env.example": {
-      "bytes": 660,
-      "sha256": "59257af275bd1df2d03888e81abbb5e4d456154cde98ed1b3a4adb25dc32dfb2"
+      "bytes": 639,
+      "sha256": "4285d2ad37746782437845babe8cbdae771f12ecf8d6f574787e500656949802"
     },
     ".gitattributes": {
       "bytes": 108,
@@ -33,8 +33,8 @@
       "sha256": "de463dbda031f5b7891e7d767b649306cd6b3f77711610bcbaf324ec445bca4f"
     },
     "README.md": {
-      "bytes": 29310,
-      "sha256": "e7f5d401a6409b7ea31db8450080b49a04e884684e4ae4d7f3d098dc0be87254"
+      "bytes": 29268,
+      "sha256": "8035730de18ef7bf25be670e4612747459f122d875854b0c9ac482debb0014c6"
     },
     "SPEED_REPORT.json": {
       "bytes": 6433,
@@ -81,8 +81,8 @@
       "sha256": "ac437e27f79391d94d746761df992ec5d578415217883495e7f7850afba85db6"
     },
     "configs/task/simple_rgbd_global_depth.yaml": {
-      "bytes": 1659,
-      "sha256": "e0385574fd529e7690a29908c4c9c52c734559c09d4a5545dc6a3dc174c309b5"
+      "bytes": 1638,
+      "sha256": "69becd7794820267bf0cef947c15f7c2d76c14a1800e8d6d6822305f027f7fe1"
     },
     "configs/train.yaml": {
       "bytes": 1672,
@@ -113,8 +113,8 @@
       "sha256": "8b65ebcb8de8c3c89113695a61783cdb97c2aa5003477f0ca743aa511bc68312"
     },
     "scripts/env.sh": {
-      "bytes": 1183,
-      "sha256": "8a1347a6c4171a21df94860c5cf0ef1bfc58acc19820b5a37011b8031c76295f"
+      "bytes": 1162,
+      "sha256": "079c40c0c5f3f386315b1b1c3b897ff510a4ce6f9eadb264cf75c4e939b768ba"
     },
     "scripts/flux2/preprocess_action_dit_flux2.py": {
       "bytes": 6791,

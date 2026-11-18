@@ -188,7 +188,7 @@ source scripts/env.sh
 | FLUX.2 主干 | [FLUX.2-klein-base-4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B/tree/main)，`flux-2-klein-base-4b.safetensors` | `checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors` | 四组 |
 | 图像 AE | [FLUX.2-dev](https://huggingface.co/black-forest-labs/FLUX.2-dev/tree/main)，仅 `ae.safetensors` | `checkpoints/flux2/FLUX.2-dev/ae.safetensors` | 四组 |
 | Depth Pro 解码器初始化 | [Apple 官方文件](https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt) | `checkpoints/depth_pro/depth_pro.pt` | only depth、both |
-| ActionDiT 初始化 | 本仓库从 FLUX.2 权重生成 | `checkpoints/action_dit_flux2_4b_simple9_36d_init.pt` | 四组 |
+| ActionDiT 初始化 | 本仓库从 FLUX.2 权重生成 | `checkpoints/action_dit_init.pt` | 四组 |
 
 使用 **klein-base-4B**，不要换成蒸馏版 klein-4B、9B 或完整 dev 主干。`simple9` 是历史文件名，不表示当前有九个任务。
 
@@ -226,7 +226,7 @@ bash scripts/prepare_action_init.sh
 ```bash
 export FLUX2_MODEL_PATH=/mnt/models/flux-2-klein-base-4b.safetensors
 export FLUX2_AE_MODEL_PATH=/mnt/models/ae.safetensors
-export SIMPLE_ACTION_INIT=/mnt/models/action_dit_flux2_4b_simple9_36d_init.pt
+export SIMPLE_ACTION_INIT=/mnt/models/action_dit_init.pt
 export DEPTH_PRO_CHECKPOINT=/mnt/models/depth_pro.pt
 ```
 

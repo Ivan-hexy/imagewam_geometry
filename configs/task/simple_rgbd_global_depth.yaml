@@ -30,7 +30,7 @@ model:
   qwen3_model_spec: Qwen/Qwen3-4B
   qwen_context_len: 128
   proprio_dim: 32
-  action_dit_pretrained_path: ${oc.env:SIMPLE_ACTION_INIT,./checkpoints/action_dit_flux2_4b_simple9_36d_init.pt}
+  action_dit_pretrained_path: ${oc.env:SIMPLE_ACTION_INIT,./checkpoints/action_dit_init.pt}
   action_dit_config:
     action_dim: 36
   geometry_supervision:
