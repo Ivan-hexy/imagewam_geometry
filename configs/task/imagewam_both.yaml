@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - imagewam_geometry
+  - _self_
+wandb:
+  name: imagewam_geometry

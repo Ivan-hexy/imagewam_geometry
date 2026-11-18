@@ -1,150 +1,211 @@
-# ImageWAM Geometry on SIMPLE RGB-D
+# ImageWAM Geometry：SIMPLE RGB-D 四组实验
 
-本仓库提供适配清洗后 SIMPLE RGB-D 数据的两个训练入口：`imagewam_baseline` 与 `imagewam_geometry`。基于 [ImageWAM](https://github.com/yuyangalin/ImageWAM)，不是上游官方发布。
+本仓库基于 [ImageWAM](https://github.com/yuyangalin/ImageWAM)，提供适配 SIMPLE RGB-D 的训练代码，不是上游官方发布。当前默认分支使用 **action chunk 32、相对旋转监督、全局 XYZ 监督**，**不启用相机相对平移预测**，也没有局部几何 tokens。
 
-| 配置 | 图像与动作预测 | 相对旋转预测 | 全局深度与 XYZ 监督 |
-|---|---|---|---|
-| imagewam_baseline | 有 | 无 | 无 |
-| imagewam_geometry | 有 | 有 | 有 |
+这份 README 可以直接交给 Codex 按步骤执行。文中的命令在 **Linux 训练服务器、仓库根目录**运行；Windows 用户先 SSH 到训练服务器。正式训练必须使用已经分配且空闲的 GPU。
 
-baseline 不创建姿态／几何 tokens 和对应预测头，不是仅将辅助 loss 权重设为零。两组共用数据读取、动作尾部掩码和原有主干处理方式。
+## 1. 四个实验分别是什么
 
-## 当前实现
+四组都训练图像和动作，使用相同数据、初始化权重、chunk、学习率计划和全局 batch。
 
-- action chunk 为 32，RGB 输入为 176×320；全局深度／XYZ 为 256×448，内参同步缩放。
-- geometry 使用 FLUX.2 侧 32 个旋转 tokens、ActionDiT 侧 220 个全局几何 tokens，保留全部 25 层的注意力连接／条件 KV；取 5 个几何 token 中间状态交给多尺度适配层与 Depth Pro 解码器。
-- 旋转监督覆盖 chunk 内有效未来帧；深度／XYZ 监督针对 chunk 末帧，XYZ 位于**未来相机坐标系**，单位为米。
-- 当前没有局部 tokens，也不启用相对位移预测。相机位姿与深度只用于训练监督，不作为策略推理输入。
-- 图像、动作、XYZ、旋转 loss 权重分别为 **0.5、1、0.5、5**。
-- 保留真实尾部动作；不足 32 步的动作补齐部分不计 loss。没有真实 chunk 末帧时关闭该样本的未来图像与几何监督，旋转仅监督实际存在的未来帧。
-- 当前图文时间调制恢复 baseline 行为；取消 geometry 额外的整层重计算，原有注意力与深度解码器的 checkpoint 策略仍保留。
+| 实验 | 启动名称 | 配置 | 旋转 tokens / 头 | 几何 tokens / Depth Pro 头 | 总损失 |
+|---|---|---|---|---|---|
+| baseline | `baseline` | `imagewam_baseline` | 无 | 无 | `0.5 L_image + L_action` |
+| only pose | `only_pose` | `imagewam_only_pose` | 32 个，有 | 无 | `0.5 L_image + L_action + 5 L_rotation` |
+| only depth | `only_depth` | `imagewam_only_depth` | 无 | 220 个，有 | `0.5 L_image + L_action + 0.5 L_XYZ` |
+| both / 完整 geometry | `both` | `imagewam_both` | 32 个，有 | 220 个，有 | `0.5 L_image + L_action + 0.5 L_XYZ + 5 L_rotation` |
 
-## 环境
+**这里的 pose 仅指相对旋转，不包含平移。** `geometry` / `task=imagewam_geometry` 是 both 的兼容入口。`only_pose` 和 `only_depth` 会真正移除对应 tokens、预测头和损失，不是仅把 loss 权重置零。
 
-目标平台为 Linux + NVIDIA GPU。已用 Python 3.11、PyTorch 2.7.1/CUDA 11.8、Transformers 4.56.1、Accelerate 1.12.0 和 DeepSpeed 0.18.5 运行。
+baseline 使用原 ImageWAM 主干，不创建辅助模块。其余三组在同一主干上开启对应分支；全部 25 层的条件注意力连接保留。四组共用尾部采样规则。为了统一数据管线，加载器仍可读取辅助 GT，但关闭的分支不会使用它计算预测或损失。
 
-先接受本 GitHub 私有仓库的协作邀请，并配置自己的 GitHub Git 登录。以下命令均在仓库根目录执行；已克隆的用户直接进入现有目录即可。需要预先安装 Git、Python 3.11 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。
+### 模型与监督约定
+
+- 图像主干：FLUX.2 **klein-base-4B**；动作主干：ActionDiT，动作维度 36，机器人 state 维度 32。
+- 当前文本特征、当前 RGB 和当前机器人 state 是条件；相机位姿和深度 GT 只作为训练标签。
+- RGB 输入 **176×320**；全局深度／XYZ 输出 **256×448**。原始数据为 360×640，加载器按输出尺寸缩放相机内参。
+- 全局几何 tokens 为 11×20=220 个，取第 5、10、15、20、25 层状态，经多尺度适配层和 Depth Pro 解码器预测米制深度，再用内参反投影得到 XYZ。
+- `L_XYZ` 是未来相机坐标系中的 XYZ Smooth L1，`beta=0.1`；GT 来自仿真米制深度。不是把世界坐标位置作为输入。
+- 旋转头输出连续 6D 表示，再转换成旋转矩阵；`L_rotation = ||R_pred - R_gt||_F² / 8`。日志中的角度误差单位是度，和训练 loss 的数值不同。
+- 图像、动作使用各自 flow-matching 目标的 MSE，并保留原 scheduler 权重；不是直接对 RGB 像素做 MSE。
+- 原图文和动作 token 的时间调制沿用 baseline；辅助 tokens 使用零时刻调制。没有 geometry 额外的整层激活重计算，原有注意力和深度解码器的 checkpoint 策略保留。
+
+### chunk 32 和尾部处理
+
+窗口以当前帧 `t` 为条件，监督动作 `t ... t+31`，未来图像与 XYZ 对应 `t+32`；32 个旋转标签分别是 `t+1 ... t+32` 相对 `t` 的旋转。
+
+- 不足 32 个动作的真实尾部仍保留；仅补齐位置被 `action_is_pad` 屏蔽。
+- 旋转单独按 `geometry_rotation_valid` 监督现存的有效未来帧，按有效数量平均。
+- 不存在真实 `t+32` 时，关闭这个样本的未来图像和 XYZ loss，不把当前帧占位图当成真实未来。
+- 最后一帧若有有效动作，可以监督该动作；没有后续观测则不监督旋转。无效观测、内部断裂和人工尾帧不会被当作真实未来。
+
+## 2. 当前数据版本，以及从旧版迁移
+
+数据地址：[ivanhe666/simple_rgbd](https://modelscope.cn/datasets/ivanhe666/simple_rgbd/tree/master/SIMPLE-RGBD-Teleop)。为避免 `master` 后续变化影响复现，本代码固定下载：
+
+| 项目 | 当前固定值 |
+|---|---|
+| ModelScope revision | `1aa446155d6597e91169872a965557640fb31871` |
+| 轨迹数 | **789** |
+| 总帧数 | **312,139** |
+| 任务数 | **8** |
+| chunk 32 有效动作采样窗口 | **311,072** |
+| `meta/episodes.jsonl` SHA256 | `101608685679811fc4c97fa05b14a34578fd886887e4773dea6b3a13c8d2f9a1` |
+
+相比旧的 792 条 / 313,553 帧版本，这次删除了**旧编号** 37、398、425 三条 OpenTrashCan 轨迹，并重新连续编号；现在这些编号可能对应其他轨迹，**不要再次按编号删除**。数据主结构和字段不变，视频仍是 `.mkv`。对应缓存、索引和归一化统计也已更新，必须与数据一起使用。
+
+| 任务 | 条数 |
+|---|---:|
+| Handover | 75 |
+| LocomotionPickBetweenTables | 85 |
+| OpenFaucet | 95 |
+| OpenOven | 97 |
+| OpenTrashCan | 49 |
+| PickAndPlaceAndHugContainer | 159 |
+| PushOfficeChair | 85 |
+| XMoveBendPick | 144 |
+
+版本信息集中在 `configs/dataset_release.json`。检查程序同时验证数据清单、info、训练清单和归一化统计的哈希，不能只改轨迹数量来绕过版本检查。
+
+**已有旧数据时下载到新目录。** 默认新目录是 `data/simple_rgbd_1aa44615/`，不会主动覆盖原来的 `data/SIMPLE-RGBD-Teleop/`。下载脚本发现目标目录中的关键文件属于其他版本会停止。训练期间不要原地替换数据，不要混用旧缓存，也不要将旧数据的完整训练 state 直接恢复到重新编号后的数据上。
+
+## 3. 第一步：克隆代码并检查服务器
+
+仓库若为私有，先接受协作者邀请，使用自己的 GitHub 登录或 SSH 密钥。
 
 ```bash
 git clone https://github.com/Ivan-hexy/imagewam_geometry.git
 cd imagewam_geometry
+git switch main
+git rev-parse HEAD
+nvidia-smi
+df -h .
+gcc --version
+```
+
+已有仓库先检查本地改动：
+
+```bash
+git status --short
+git fetch origin
+git switch main
+git pull --ff-only
+```
+
+如果有未提交改动或无法 fast-forward，先确认这些改动的用途，不要用 `reset --hard` 覆盖。当前流程使用 `main`，不要切换到包含相对平移试验的 `pose-metric-pilot`。
+
+准备 Linux、NVIDIA 驱动、Git、Python 3.11 和 uv。PyTorch wheel 使用 CUDA 11.8；DeepSpeed 扩展可能还需要服务器 CUDA toolkit、C++ 编译器和 Ninja。数据约需 200 GB，另外为权重、环境及四组检查点预留空间；四组完整训练 state 和多个权重文件会再占用数百 GB，先检查磁盘或账户配额。
+
+## 4. 第二步：创建训练环境
+
+```bash
+# 如果服务器尚无 uv，先安装；已有则跳过这一行。
+python3 -m pip install --user uv
 uv venv --python 3.11
 source .venv/bin/activate
 uv pip install -e '.[shared]'
 cp -n .env.example .env.local
+source scripts/env.sh
+python -c 'import torch, av, h5py, deepspeed; print(torch.__version__, torch.version.cuda); print("CUDA available:", torch.cuda.is_available())'
 ```
 
-FLUX.2 和 Depth Pro 的必要源码快照已放在 `third_party/`。不需要再安装它们的完整 pyproject 依赖（会改变当前 PyTorch 版本）。GPU 驱动和需要编译 CUDA 扩展时使用的 CUDA toolkit 由训练机器提供。
+已使用的环境组合包括 Python 3.11、PyTorch 2.7.1/CUDA 11.8、Transformers 4.56.1、Accelerate 1.12.0、DeepSpeed 0.18.5。依赖版本见 `pyproject.toml`。`third_party/` 已带有必要的 FLUX.2 和 Depth Pro 源码；不要额外安装它们整套项目依赖覆盖当前 PyTorch。
 
-## 下载数据
+每次新开终端后，先进入仓库，再执行：
 
-### 1. 获得权限并登录魔塔
+```bash
+source .venv/bin/activate
+source scripts/env.sh
+```
 
-数据与文本缓存位于 [ivanhe666/simple_rgbd 的文件页](https://modelscope.cn/datasets/ivanhe666/simple_rgbd/files)。**数据仓库在打包时为私有：GitHub 代码访问权限不等于魔塔数据访问权限。** 合作者需要向数据所有者申请魔塔读取权限，然后使用自己的魔塔账号登录。CLI 提示时输入该账号的魔塔访问 Token；不要使用 GitHub 或 Hugging Face Token，也不要将 Token 写进仓库。
+## 5. 第三步：下载数据与配套缓存
 
-下载工具使用独立环境，无需激活它，不会替换训练环境的依赖：
+ModelScope 下载工具使用独立环境，避免改变训练依赖：
 
 ```bash
 python3 -m venv .download-venv
 .download-venv/bin/pip install modelscope-hub==0.7.1
+# 若仓库访问要求登录，使用自己的魔搭账号完成此步骤：
 .download-venv/bin/ms-hub login
-```
-
-### 2. 下载固定版本的数据和缓存
-
-```bash
 bash scripts/download_data.sh
 ```
 
-该脚本等价于下面的命令，**两种方式选一种即可**：
+GitHub、魔搭、Hugging Face 的权限和 Token 是三套独立凭据。不要将凭据写入代码、README 或 Git 远程 URL；下载报 401/403 时检查对应平台账号权限。
+
+下载脚本等价于以下命令，两种方式选一种：
 
 ```bash
 .download-venv/bin/ms-hub download ivanhe666/simple_rgbd \
   --repo-type dataset \
-  --revision a36b289eb6d6d7c6b36e8ee11f7c8a03ac3730f6 \
-  --local-dir ./data \
+  --revision 1aa446155d6597e91169872a965557640fb31871 \
+  --local-dir ./data/simple_rgbd_1aa44615 \
   --max-workers 4
 ```
 
-固定版本包含 **792 条轨迹、313,553 帧、8 个任务**，含尾部处理后有效动作采样窗口为 **312,481**。缓存内旧的 full-window 计数不包含补齐尾部窗口。数据和缓存约需 **200 GB**，请另留模型权重、环境及训练检查点空间。不要只下载 RGB 视频；动作、深度、相机参数、清单、归一化统计和文本缓存都需要保留。
-
-默认下载后的目录如下，两个 `SIMPLE-RGBD-*` 目录必须并列：
+预期目录：
 
 ```text
 imagewam_geometry/
-  data/
+  data/simple_rgbd_1aa44615/
     SIMPLE-RGBD-Teleop/
-      meta/
-        episodes.jsonl
-      ...                         # RGB、深度、动作和轨迹等文件
+      meta/episodes.jsonl
+      meta/info.json
+      data/...                    # 动作、state 等 parquet
+      videos/...                  # RGB MKV
+      depth/...                   # 米制深度、内外参、动作与有效掩码 HDF5
+      trajectories/...
     SIMPLE-RGBD-Teleop-cache/
       all_verified_stats.json
       all_verified_training_manifest.json
-      qwen3/                      # 训练使用的预计算文本特征
+      qwen3/                      # 预计算文本特征
 ```
 
-### 3. 可选：放到独立数据盘或使用已有数据
+不要只下载 RGB，不需要重新渲染、转换视频或重算这套已匹配的缓存。
 
-例如下载到 `/mnt/datasets/simple_rgbd`（替换成自己的可写目录）：
+### 数据放到其他磁盘／复用已有新版数据
 
 ```bash
-DATA_DOWNLOAD_DIR=/mnt/datasets/simple_rgbd bash scripts/download_data.sh
+DATA_DOWNLOAD_DIR=/mnt/datasets/simple_rgbd_1aa44615 bash scripts/download_data.sh
 ```
 
-然后**编辑**仓库根目录 `.env.local`，设置以下两行；已有同版本副本也直接这样配置，无需重复下载：
+然后编辑 `.env.local`，同时设置两个目录，保留文件中已有的其他配置：
 
 ```bash
-export SIMPLE_RGBD_ROOT=/mnt/datasets/simple_rgbd/SIMPLE-RGBD-Teleop
-export SIMPLE_RGBD_CACHE=/mnt/datasets/simple_rgbd/SIMPLE-RGBD-Teleop-cache
+export SIMPLE_RGBD_ROOT=/mnt/datasets/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop
+export SIMPLE_RGBD_CACHE=/mnt/datasets/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache
 ```
-
-`DATA_DOWNLOAD_DIR` 只控制下载位置，不会自动修改训练路径。训练过程中不要重命名、重编号或替换这一版本的数据；更换数据需使用新路径并重新构造加载器。
-
-## 下载模型与生成 ActionDiT 初始化
-
-### 1. 需要哪些文件
-
-GitHub 只保存代码，预训练权重从以下官方来源下载。表中路径均相对于本仓库根目录。
-
-| 内容 | 来源与准确文件名 | 默认保存位置 | 哪组需要 |
-|---|---|---|---|
-| FLUX.2 图像主干 | [black-forest-labs/FLUX.2-klein-base-4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B/tree/main) 中的 `flux-2-klein-base-4b.safetensors` | `checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors` | 两组 |
-| FLUX.2 图像自编码器 AE | [black-forest-labs/FLUX.2-dev](https://huggingface.co/black-forest-labs/FLUX.2-dev/tree/main) 中的 `ae.safetensors` | `checkpoints/flux2/FLUX.2-dev/ae.safetensors` | 两组 |
-| Depth Pro 几何解码器初始化 | [Apple 官方权重](https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt)，见 [官方下载脚本](https://github.com/apple/ml-depth-pro/blob/main/get_pretrained_models.sh) | `checkpoints/depth_pro/depth_pro.pt` | 仅 geometry |
-| ActionDiT 初始化 | 由本仓库脚本根据上述 FLUX.2 主干生成，无需另找下载链接 | `checkpoints/action_dit_flux2_4b_simple9_36d_init.pt` | 两组 |
-
-必须使用 **klein-base-4B**，不要替换成蒸馏版 `FLUX.2-klein-4B`、9B 或完整 `FLUX.2-dev` 主干。从 `FLUX.2-dev` 仓库只下载 `ae.safetensors`，不需要下载整个模型仓库。
-
-### 2. 登录 Hugging Face
-
-使用自己的 Hugging Face 账号访问上表中的两个 FLUX.2 仓库；若页面要求申请访问或接受模型条款，先在网页完成。然后在 [Hugging Face Token 设置](https://huggingface.co/settings/tokens) 创建有权读取相应模型的 Token，在训练环境执行：
-
-```bash
-source .venv/bin/activate
-hf auth login
-hf auth whoami
-```
-
-`hf auth login` 会交互式请求 Token。这里只做文件下载，询问是否加入 Git 凭据时可选 `n`。本项目固定的 `huggingface-hub==0.34.4` 支持上述命令，详见 [对应版本 CLI 文档](https://huggingface.co/docs/huggingface_hub/v0.34.4/guides/cli)。这是 Hugging Face 登录，与 GitHub、魔塔的登录相互独立。
-
-### 3. 下载预训练权重
-
-运行 geometry，或者准备同时运行两组实验：
 
 ```bash
 source scripts/env.sh
-python scripts/download_weights.py --mode geometry
 ```
 
-如果**只运行 baseline**，将上一条 Python 命令换成：
+`DATA_DOWNLOAD_DIR` 只改变下载目的地，不会自动修改训练路径。已有同版本完整数据可跳过下载，直接配置上述变量并执行下一节的检查。
+
+## 6. 第四步：下载模型权重并生成 ActionDiT 初始化
+
+| 权重 | 官方来源与文件 | 默认路径 | 需要的实验 |
+|---|---|---|---|
+| FLUX.2 主干 | [FLUX.2-klein-base-4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B/tree/main)，`flux-2-klein-base-4b.safetensors` | `checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors` | 四组 |
+| 图像 AE | [FLUX.2-dev](https://huggingface.co/black-forest-labs/FLUX.2-dev/tree/main)，仅 `ae.safetensors` | `checkpoints/flux2/FLUX.2-dev/ae.safetensors` | 四组 |
+| Depth Pro 解码器初始化 | [Apple 官方文件](https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt) | `checkpoints/depth_pro/depth_pro.pt` | only depth、both |
+| ActionDiT 初始化 | 本仓库从 FLUX.2 权重生成 | `checkpoints/action_dit_flux2_4b_simple9_36d_init.pt` | 四组 |
+
+使用 **klein-base-4B**，不要换成蒸馏版 klein-4B、9B 或完整 dev 主干。`simple9` 是历史文件名，不表示当前有九个任务。
+
+如 Hugging Face 页面要求接受条款或申请权限，先在对应模型页完成，再使用自己的账号登录：
 
 ```bash
-python scripts/download_weights.py --mode baseline
+source .venv/bin/activate
+source scripts/env.sh
+hf auth login
+hf auth whoami
+python scripts/download_weights.py --mode both
+bash scripts/prepare_action_init.sh
 ```
 
-`geometry` 下载 FLUX.2 主干、AE 和 Depth Pro；`baseline` 只下载前两项。两组共用同一份 FLUX.2 和 ActionDiT 初始化，不需要各下载一套。下载脚本打印每个文件的本地路径。
+跑四组只需下载一次。若仅准备 baseline 或 only pose，可把下载参数改成 `--mode baseline` 或 `--mode only_pose`，这样不下载 Depth Pro。ActionDiT 初始化脚本默认在 CPU 上转换一次；文件已经存在会跳过，转换时需要足够主机内存。
 
-若希望手动下载，下面是与默认目录一致的命令；使用过上面的脚本就不必重复执行：
+需要手动下载时，使用下面的命令替代下载脚本：
 
 ```bash
 hf download black-forest-labs/FLUX.2-klein-base-4B \
@@ -152,42 +213,15 @@ hf download black-forest-labs/FLUX.2-klein-base-4B \
   --local-dir ./checkpoints/flux2/FLUX.2-klein-base-4B
 hf download black-forest-labs/FLUX.2-dev ae.safetensors \
   --local-dir ./checkpoints/flux2/FLUX.2-dev
-
-# 仅 geometry 需要；使用临时文件，下载成功后再改名
 mkdir -p ./checkpoints/depth_pro
 curl --fail --location --retry 3 \
   https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt \
   --output ./checkpoints/depth_pro/depth_pro.pt.download && \
-  mv ./checkpoints/depth_pro/depth_pro.pt.download ./checkpoints/depth_pro/depth_pro.pt
-```
-
-### 4. 生成 ActionDiT 初始化
-
-下载完 FLUX.2 主干后，在已激活的训练环境执行一次：
-
-```bash
+mv ./checkpoints/depth_pro/depth_pro.pt.download ./checkpoints/depth_pro/depth_pro.pt
 bash scripts/prepare_action_init.sh
 ```
 
-该脚本默认在 **CPU** 上转换权重，并写入 `checkpoints/action_dit_flux2_4b_simple9_36d_init.pt`；转换期间会占用主机内存。文件已存在时会跳过。文件名中的 `simple9` 是保留的历史命名，不代表当前数据有 9 个任务。ActionDiT 主干由 FLUX.2 权重初始化，36 维动作输入输出投影在训练时初始化。
-
-完整 geometry 准备结果为：
-
-```text
-checkpoints/
-  flux2/
-    FLUX.2-klein-base-4B/
-      flux-2-klein-base-4b.safetensors
-    FLUX.2-dev/
-      ae.safetensors
-  depth_pro/
-    depth_pro.pt
-  action_dit_flux2_4b_simple9_36d_init.pt
-```
-
-### 5. 可选：使用其他位置的已有权重
-
-在 `.env.local` 编辑所需路径，再执行 `source scripts/env.sh`：
+如果复用其他位置的权重，编辑 `.env.local` 后重新 `source scripts/env.sh`：
 
 ```bash
 export FLUX2_MODEL_PATH=/mnt/models/flux-2-klein-base-4b.safetensors
@@ -196,79 +230,219 @@ export SIMPLE_ACTION_INIT=/mnt/models/action_dit_flux2_4b_simple9_36d_init.pt
 export DEPTH_PRO_CHECKPOINT=/mnt/models/depth_pro.pt
 ```
 
-只设置自己需要覆盖的项。已有文件可跳过对应下载；ActionDiT 尚未生成时仍需运行初始化脚本。**当前自动下载脚本中的两个 FLUX.2 文件始终写入仓库默认目录**，`FLUX2_MODEL_PATH` / `FLUX2_AE_MODEL_PATH` 控制加载位置，不会改变下载目录；`DEPTH_PRO_CHECKPOINT` 则同时控制 Depth Pro 的下载和加载位置。不要将新下载的权重和 `.env.local` 指向的旧文件混淆。
+FLUX.2 下载脚本仍写入默认 `checkpoints/` 目录；上述变量控制加载位置。Depth Pro 下载脚本会使用 `DEPTH_PRO_CHECKPOINT` 指定的目的文件。
 
-### 6. 下载完成后检查
+训练复用 `qwen3/` 中的文本缓存，无需另下载 Qwen3。在线处理新文本需要单独准备文本编码器。GitHub 不包含训练到 20k/30k/40k 的策略检查点；本节是从官方预训练模型开始训练所需的权重。
 
-在仓库根目录执行；只跑一组时只执行对应检查即可：
+## 7. 第五步：正式启动前的检查
+
+先检查四组配置及必要权重文件：
 
 ```bash
+for mode in baseline only_pose only_depth both; do
+  python scripts/check_setup.py --mode "$mode" --config-only --require-weights || exit 1
+done
+```
+
+输出应全部为 `config_passed: true`、`translation_enabled: false`，tokens 数量与第一节表格一致。`--config-only` 不读取数据；`--require-weights` 检查文件存在，不代表完整加载模型已通过。
+
+再检查真实数据、缓存和全部采样窗口：
+
+```bash
+python scripts/check_setup.py --mode both --all-windows --require-weights
+```
+
+预期关键字段：
+
+```json
+{
+  "episodes": 789,
+  "frames": 312139,
+  "actual_windows": 311072,
+  "sampled_first_and_last_windows_passed": true,
+  "translation_enabled": false
+}
+```
+
+这一步核对四个关键元数据／缓存文件的哈希、全部轨迹引用文件存在性、全部窗口数量，并解码每个任务一条轨迹的首尾窗口。它不是对约 200 GB 数据逐文件重算 SHA256，也不是逐帧视觉质量审核。若不用 `--all-windows`，仅枚举抽样轨迹，`actual_windows` 为 null。
+
+可再执行结构和梯度检查（CPU，需 Depth Pro 权重）：
+
+```bash
+python scripts/verify_ablation_branches.py
+```
+
+这会检查真正移除分支、旋转尾部梯度掩码，以及窄版 25 层网络的注意力可见性和动作 KV 缓存一致性；不是完整大小模型的 GPU 收敛测试。
+
+## 8. 第六步：先做 bs1 冒烟，再做短测
+
+默认采用**同节点四卡**、每卡 bs1，依次执行四组各三次完整优化器更新。先确认 `0,1,2,3` 是分配给你的空闲卡；Slurm 作业内不要覆盖调度器设置的 `CUDA_VISIBLE_DEVICES`。
+
+```bash
+set -euo pipefail
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+export GPU_PER_NODE=4
+export MASTER_PORT=29500
+SMOKE_TAG=$(date +%Y%m%d_%H%M%S)
+mkdir -p "runs/smoke_$SMOKE_TAG"
+for mode in baseline only_pose only_depth both; do
+  bash scripts/train.sh "$mode" \
+    batch_size=1 gradient_accumulation_steps=1 num_workers=2 \
+    max_steps=3 warmup_steps=0 log_every=1 save_every=0 eval_every=0 \
+    +checkpoint_mode=none +record_metrics_every_step=true \
+    "output_dir=./runs/smoke_$SMOKE_TAG/$mode" \
+    2>&1 | tee "runs/smoke_$SMOKE_TAG/$mode.log"
+done
+```
+
+每组都应产生 `metrics.jsonl`，含 step 1、2、3 且 loss 有限；退出码为零。只看到模型加载、前向通过或 step 0，**不算完成参数更新**。这一步的全局 batch 是 4，只用于运行检查，不用于四组最终效果比较。
+
+若需要 200 次更新短测，将上述训练覆盖项改成 `max_steps=200 warmup_steps=10`，另用新输出目录。不要把 200 步短测当成机器人任务成功率评测；短测学习率计划也不同于正式 40k。
+
+仅查看启动命令、暂不训练：
+
+```bash
+DRY_RUN=true GPU_PER_NODE=4 bash scripts/train.sh both
+```
+
+单卡 bs1 不保证完整 AdamW 能装入显存，参数、梯度和优化器状态不会随着 batch 一起缩小。当前默认不使用 CPU 卸载，也不使用相对平移实验分支的优化器改动。不要未经确认就改为冻结主干、8-bit optimizer 或其他训练方法来冒充同配置测试。
+
+## 9. 第七步：四组正式训练怎么启动
+
+共同配置：**4 卡 × 每卡 batch 8 × 梯度累计 2 = 全局 batch 64**；每卡 8 workers；40,000 次优化器更新；峰值学习率 2.5e-5；warmup 1000 次后 cosine 衰减；每 10,000 次保存一次检查点。前 1000 次学习率上升是预热行为。
+
+四组均从相同 FLUX.2、AE 和 ActionDiT 初始化开始，保持 `resume=null`、seed 42。不要拿其中一组训练后的策略权重初始化另一组消融。
+
+| 实验 | 核心启动命令 | 独立输出目录示例 |
+|---|---|---|
+| baseline | `bash scripts/train.sh baseline` | `runs/formal_<tag>/baseline` |
+| only pose | `bash scripts/train.sh only_pose` | `runs/formal_<tag>/only_pose` |
+| only depth | `bash scripts/train.sh only_depth` | `runs/formal_<tag>/only_depth` |
+| both | `bash scripts/train.sh both` | `runs/formal_<tag>/both` |
+
+只有四张卡时，下面的循环**按顺序**跑四组，不会同时抢同一组 GPU：
+
+```bash
+set -euo pipefail
 source .venv/bin/activate
 source scripts/env.sh
-python scripts/check_setup.py --mode baseline --require-weights
-python scripts/check_setup.py --mode geometry --require-weights
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+export GPU_PER_NODE=4
+export MASTER_PORT=29500
+RUN_TAG=$(date +%Y%m%d_%H%M%S)
+mkdir -p "runs/formal_$RUN_TAG"
+for mode in baseline only_pose only_depth both; do
+  bash scripts/train.sh "$mode" \
+    batch_size=8 gradient_accumulation_steps=2 num_workers=8 \
+    max_steps=40000 warmup_steps=1000 learning_rate=2.5e-5 \
+    save_every=10000 log_every=10 seed=42 resume=null \
+    +record_metrics_every_step=true \
+    "output_dir=./runs/formal_$RUN_TAG/$mode" \
+    2>&1 | tee "runs/formal_$RUN_TAG/$mode.log"
+done
 ```
 
-成功时输出 JSON，其中 `config_passed` 和 `sampled_first_and_last_windows_passed` 均为 `true`，并显示 `episodes: 792`、`frames: 313553`、`sampled_tasks: 8`。该检查核对权重文件存在性、固定版本的 episode 清单哈希、所有 episode 文件是否齐全，以及每个任务的首尾采样窗口；**不会完整加载验证模型权重，也不是对约 200 GB 数据逐文件重算哈希**。
+八张空闲卡可分成 `0,1,2,3` 和 `4,5,6,7` 两组并发，每个进程组使用不同 `MASTER_PORT` 和输出目录，再分别运行余下实验。不要在同一组卡上同时启动两组训练。
 
-训练复用数据包 `SIMPLE-RGBD-Teleop-cache/qwen3/` 的文本特征，**上述训练流程无需下载 Qwen3 模型**。在线处理新指令需要另行准备文本编码器。本仓库的下载流程用于从官方预训练权重开始训练，**不包含之前训练到 30k／40k 的策略检查点，也不是评测权重下载入口**。各权重分别遵循其原始许可。
+Slurm 用户先申请同节点四卡和约 36 个 CPU 核心，再在作业内激活环境、`export GPU_PER_NODE=4` 并执行训练命令；保留调度器设置的可见卡。账号、分区、时间和内存限制按所在集群填写，本仓库不绑定 scut1 的账号。
 
-### 常见下载问题
+如果 4×8 显存不足，可尝试四组统一改为 **4×4×累计4**，仍保持全局 batch 64。保持同一设置比较四组。不要随意跨节点；不要对正在训练的目录原地更新源码或数据。
 
-| 现象 | 处理方式 |
+## 10. 第八步：怎么检查训练结果、恢复训练
+
+每组独立保存：
+
+```text
+runs/formal_<tag>/<mode>/
+  config.yaml
+  metrics.jsonl
+  checkpoints/
+    weights/step_010000.pt
+    weights/step_020000.pt
+    ...
+    state/step_040000/            # 默认只保留最近一次完整训练 state
+```
+
+检查示例（替换实际路径）：
+
+```bash
+tail -n 3 runs/formal_<tag>/both/metrics.jsonl
+ls -lh runs/formal_<tag>/both/checkpoints/weights
+```
+
+关注 `step`、`loss_action_raw`、`loss_video_raw`。有旋转分支时看 `loss_relative_rotation`、`rotation_error_deg`、`rotation_endpoint_error_deg`；有深度分支时看 `loss_global_xyz`、`depth_abs_error_m`。辅助指标按分支出现；被关闭的辅助损失为零。不能因为各组总 loss 的项数不同，就直接比较总 loss 判断哪个更好。
+
+最终四组比较应使用相同评测环境版本、任务、seed、回合数、观测／动作归一化、预测长度和执行长度，报告成功率及逐任务结果。本仓库没有打包模拟器场景和完整 rollout 服务，训练 loss 下降不能替代任务成功率。
+
+恢复同一实验的完整 state：
+
+```bash
+bash scripts/train.sh both \
+  resume=/absolute/path/to/checkpoints/state/step_020000 \
+  output_dir=/absolute/path/to/the/same_or_new_run
+```
+
+`resume` 指向 **state 目录**才恢复优化器、scheduler 和步数；指向 `.pt` 文件只加载权重，会从新的优化器／学习率计划开始。恢复时保持实验类型、chunk、数据版本和必要训练配置一致。旧 chunk16 的 20k 权重有 16 个旋转 tokens，不能当作 chunk32 的严格完整断点；only pose / only depth / both 的辅助模块也不能互换严格恢复。
+
+## 11. 推理：预测 32 步，执行前 16 步
+
+训练仍监督 32 步，不因为部署只执行 16 步而屏蔽后半段。推理调用保持 `action_horizon=32`，执行端取前 16 个动作，然后重新获取当前 RGB/state 并预测下一组 32 步，丢弃上一轮剩余动作。
+
+下面只是执行逻辑示意，`denormalize_actions`、`execute` 和相机/state 接口由部署端实现：
+
+```python
+prediction = policy.infer_action_flux2(
+    prompt=instruction, input_image=current_rgb,
+    proprio=current_state, action_horizon=32,
+)
+actions = denormalize_actions(prediction["action"], matching_training_stats)
+execute(actions[:16])
+# 重新取观测，再次调用策略；不要继续执行旧 chunk 的后 16 步。
+```
+
+输入 RGB/state 的预处理和动作反归一化必须与训练一致。几何头仍预测第 32 步的未来几何，不必改成第 16 步。相机 GT 位姿不作为部署输入。
+
+## 12. 常见错误与检查边界
+
+| 现象 | 处理 |
 |---|---|
-| 魔塔返回 401/403，或已知私有仓库显示不存在 | 先确认自己的魔塔账号已获得数据读取权限，再用 `.download-venv/bin/ms-hub login` 登录；GitHub 邀请不会授予魔塔权限。 |
-| Hugging Face 返回 401/403 / `GatedRepoError` | 用 `hf auth whoami` 确认账号，检查网页访问申请与 Token 读取权限；尤其注意 AE 来自独立的 `FLUX.2-dev` 仓库。 |
-| Hugging Face 下载超时 | 检查训练服务器能否访问 Hugging Face；可执行 `export HF_HUB_DOWNLOAD_TIMEOUT=60` 后重试同一命令。 |
-| 文件已下载，但检查仍报找不到 | 重新 `source scripts/env.sh`，核对 `.env.local`；数据路径应分别指向数据和缓存子目录，权重路径应指向具体文件。 |
-| 报 `Wrong dataset version` 或 manifest 不一致 | 确认下载了指定提交的数据和配套缓存，且路径没有指向旧数据；不要通过关闭版本检查绕过。 |
-| 找不到 ActionDiT 初始化文件 | 确认 FLUX.2 主干下载完成，然后执行 `bash scripts/prepare_action_init.sh`。 |
+| `Dataset/cache version mismatch` | 检查是否仍指向旧 792 条目录或旧缓存；数据和缓存都切到当前固定 revision，不要关闭哈希检查。 |
+| 789 条但视频/深度缺文件 | 按清单中路径补齐当前 revision；不要把旧编号文件复制进来顶替。 |
+| 魔塔/HF 401 或 403 | 核对相应平台账号、模型条款与读取权限；GitHub 邀请不授予其他平台权限。 |
+| 下载到新目录，训练仍读旧目录 | 编辑 `.env.local` 中两个数据变量，重新 `source scripts/env.sh`。 |
+| ActionDiT 初始化缺失 | 下载 FLUX.2 主干后运行 `bash scripts/prepare_action_init.sh`。 |
+| 端口被占用 | 为独立进程组指定不同 `MASTER_PORT`；不要终止其他人的进程。 |
+| CUDA OOM | 先确认没有叠加其他训练；减小 microbatch 并等比例增加累积，记录实际设置；优化器状态导致的 OOM 不一定靠减 batch 能解决。 |
+| 训练进程退出但只保存 step 0 | 检查 traceback，不能报告为训练更新成功。 |
+| 只有 loss 没有成功率 | 当前是监督训练；成功率要在同一模拟器协议下单独 rollout。 |
 
-## 启动训练
+已执行的验证包括新版元数据与缓存核对、789 条数据全部窗口枚举、八个任务首尾窗口解码、分支构建、真实 Depth Pro 解码器的 loss/梯度检查、窄版 25 层注意力／KV 缓存检查。完整 both 的 loss 和输入梯度已与 `bb16ef2` 旧实现核对一致。
 
-先运行配置检查或查看将执行的命令：
+L40 实测：四组均在 4 卡、每卡 bs1、梯度累计 1 下完成 **3 次优化器更新**，loss 有限且无 OOM；测试使用已有环境，未启用 CPU 优化器卸载。记录见 [VALIDATION.json](VALIDATION.json)。这不代表收敛或稳定速度测试。
 
-```bash
-python scripts/check_setup.py --mode baseline --config-only
-python scripts/check_setup.py --mode geometry --config-only
-DRY_RUN=true bash scripts/train.sh geometry
+完整环境从零联网安装、四组 40k 收敛和模拟器成功率尚未验证；没有进行的检查不能由 Codex 推断为已通过。
+
+## 13. 可以直接交给 Codex 的执行指令
+
+```text
+请在我指定的训练服务器上执行本仓库 README 的流程。
+1. 先报告仓库分支和 commit、GPU 空闲情况、磁盘/配额与 Python/CUDA 环境。
+   使用 main，不合并 pose-metric-pilot；不要覆盖本地未提交改动或已有正式训练。
+2. 数据固定到 configs/dataset_release.json 中的 revision。
+   同时准备 SIMPLE-RGBD-Teleop 和 SIMPLE-RGBD-Teleop-cache；已有副本先校验，
+   不要因为数量接近就认定同版本，不要删除当前编号 37/398/425。
+3. 按 README 安装环境、下载 FLUX.2 klein-base-4B、AE、Depth Pro，生成 ActionDiT 初始化。
+   使用已有凭据登录；需要我交互登录时说明平台，不要在日志中输出 Token。
+4. 对 baseline、only_pose、only_depth、both 做配置/权重检查；做全量窗口和首尾样本检查。
+   预期789条、312139帧、311072个chunk32窗口，四组predict_translation均为false。
+5. 执行结构检查；再在已分配的同节点四卡上按每卡bs1顺序做四组各3次完整更新。
+   记录退出码、实际optimizer step、loss、峰值显存、日志和输出目录。
+   若失败先定位，不将前向通过当作训练通过，不擅自改loss或冻结主干。
+6. 在我要求正式训练时，再按四组相同的global batch64、40k更新、warmup1000、
+   lr2.5e-5、每10k保存、seed42启动，使用独立目录和端口；保持数据/源码固定。
+   only_pose仅监督旋转；only_depth不创建旋转分支；both保持原loss权重。
+7. 汇报每组配置、进度、指标和检查点路径；200步/3步检查不冒充40k收敛或成功率。
+   部署预测32、执行16，需要在执行端重新取观测，不修改训练监督为16。
 ```
 
-两个实验分别启动，不要让以下两个进程占用同一组 GPU：
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 GPU_PER_NODE=4 bash scripts/train.sh baseline
-CUDA_VISIBLE_DEVICES=0,1,2,3 GPU_PER_NODE=4 bash scripts/train.sh geometry
-```
-
-默认：每卡 batch 8、梯度累积 2、8 个 workers，全局 batch 为 64；40,000 次更新，学习率 2.5e-5、1000 步预热、余弦下降，每 10,000 步保存一次。使用 ZeRO-1，优化器与参数均不卸载到 CPU。输出位于各自的 `runs/` 子目录。Slurm 用户应先在**同一个节点**申请四卡及约 36 个 CPU 核心，再运行上述命令；此处没有绑定任何特定集群账号或分区。
-
-独立 200 步冒烟测试（其学习率计划与正式训练不同）：
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 GPU_PER_NODE=4 bash scripts/train.sh geometry   max_steps=200 warmup_steps=10 save_every=0 eval_every=0   +checkpoint_mode=none +record_metrics_every_step=true
-```
-
-在单节点四张 A800 80GB 上，当前 geometry 的 4×8、累积2配置已完成200次更新，稳定约3.10秒/次完整更新。4×16无累积在该配置下OOM。速度和显存会随硬件与环境变化；不要把这次短测当成任务成功率验证。旧 chunk16 的几何检查点包含16个姿态tokens，不能直接作为 chunk32 的严格完整断点恢复。
-
-## 代码来源与共享范围
-
-核心模型源码保持打包时已经测试的实现，包装层只增加可移植配置、下载、检查与启动入口。完整环境的从零安装和模拟器成功率评测尚未在这个导出目录重新运行。保留了上游核心模块，当前共享入口只支持上述 FLUX.2／SIMPLE RGB-D 训练流程；不包含模拟器场景资产和完整评测服务。
-
-参见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 [RELEASE_MANIFEST.json](RELEASE_MANIFEST.json)。`only pose`、`only depth` 尚未作为真正独立网络分支消融实现，不能通过单纯置零 loss 冒充这两组实验。
-
-## 上传到 GitHub
-
-在 `Ivan-hexy` 账号创建一个空仓库，例如 `imagewam_geometry`。若只给合作者共享可先设为 Private；要公开时再选择 Public。创建空仓库时不要额外生成 README、LICENSE 或 .gitignore，这些文件已包含在本目录。
-
-```bash
-git init
-git add .
-git status --short
-git commit -m "Share SIMPLE RGB-D ImageWAM baseline and geometry"
-git branch -M main
-git remote add origin https://github.com/Ivan-hexy/imagewam_geometry.git
-git push -u origin main
-```
-
-使用自己已有的 GitHub 登录／凭证管理器或 SSH 密钥完成认证；不要将密码或 Token 写进远程 URL。不要把本目录之外的服务器文件夹一起上传。`.gitignore` 已排除数据、环境、权重、日志和本地配置。
+模型与第三方权重遵循各自许可，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [RELEASE_MANIFEST.json](RELEASE_MANIFEST.json)。不要将数据、环境、预训练权重、训练检查点或 `.env.local` 上传到 GitHub。

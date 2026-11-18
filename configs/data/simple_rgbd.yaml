@@ -1,13 +1,13 @@
 disable_validation: true
 train:
   _target_: imagewam.datasets.simple_rgbd.SimpleRGBDDataset
-  root: ${oc.env:SIMPLE_RGBD_ROOT,./data/SIMPLE-RGBD-Teleop}
-  text_cache_dir: ${oc.env:SIMPLE_RGBD_CACHE,./data/SIMPLE-RGBD-Teleop-cache}/qwen3
+  root: ${oc.env:SIMPLE_RGBD_ROOT,./data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop}
+  text_cache_dir: ${oc.env:SIMPLE_RGBD_CACHE,./data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache}/qwen3
   horizon: 32
   video_size: [176, 320]
   geometry_resolution: [256, 448]
   native_resolution: false
   split: all
-  norm_stats_path: ${oc.env:SIMPLE_RGBD_CACHE,./data/SIMPLE-RGBD-Teleop-cache}/all_verified_stats.json
+  norm_stats_path: ${oc.env:SIMPLE_RGBD_CACHE,./data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache}/all_verified_stats.json
   max_episodes: null
 val: null

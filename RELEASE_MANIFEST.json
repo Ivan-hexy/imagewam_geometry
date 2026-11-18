@@ -1,12 +1,12 @@
 {
-  "release": "2026-11-17-chunk32-rotation-only",
+  "release": "2026-11-18-dataset789-four-ablations-rotation-only",
   "upstream_imagewam_commit": "5d4a341ed20a95cdb08f0293f3d44778b9a9e05a",
   "dataset": {
     "repo": "ivanhe666/simple_rgbd",
-    "revision": "a36b289eb6d6d7c6b36e8ee11f7c8a03ac3730f6",
-    "episodes": 792,
-    "frames": 313553,
-    "valid_action_windows_with_tails": 312481
+    "revision": "1aa446155d6597e91169872a965557640fb31871",
+    "episodes": 789,
+    "frames": 312139,
+    "valid_action_windows_with_tails": 311072
   },
   "model": {
     "chunk": 32,
@@ -17,8 +17,8 @@
   },
   "files": {
     ".env.example": {
-      "bytes": 516,
-      "sha256": "e30395466b30049633bca6d2018d7b55978e3d3a61f25bbb20aeacb38aa87de0"
+      "bytes": 660,
+      "sha256": "59257af275bd1df2d03888e81abbb5e4d456154cde98ed1b3a4adb25dc32dfb2"
     },
     ".gitattributes": {
       "bytes": 108,
@@ -28,9 +28,29 @@
       "bytes": 387,
       "sha256": "3721fd1e25fd519141d98542d0b37ba4631cbb2e786ce0ff8678cf7f98ba03e5"
     },
+    "LICENSE": {
+      "bytes": 1207,
+      "sha256": "de463dbda031f5b7891e7d767b649306cd6b3f77711610bcbaf324ec445bca4f"
+    },
+    "README.md": {
+      "bytes": 24704,
+      "sha256": "cc152da69bf1e7a5fc4f9bc0292e1d7dad05ad5c16ea1ff7d42086de7603de43"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "bytes": 1120,
+      "sha256": "48ee5744d6a6dc36f58c635a08a48e2f249f33d9b9b122cc253e77582cdc629d"
+    },
+    "VALIDATION.json": {
+      "bytes": 11633,
+      "sha256": "cc0f69f1608b40e0bbc29b74a698825fd268460f7df06e82d97908fc3ff6d4f7"
+    },
     "configs/data/simple_rgbd.yaml": {
-      "bytes": 484,
-      "sha256": "47a0a5a8344973687c9e3802484d43e3c366ba18676e961f0222b3d89e382d2a"
+      "bytes": 547,
+      "sha256": "5d1c8326fdfe09d7ad62b4911cc6bca340d468ca4796a2d67f6e52d56c3c0124"
+    },
+    "configs/dataset_release.json": {
+      "bytes": 726,
+      "sha256": "f2258259db28348a7385960c1afbaf0bf03a51fbe9896280d217bdccfe891a5c"
     },
     "configs/model/imagewam_flux2_klein_4b_base.yaml": {
       "bytes": 1163,
@@ -40,53 +60,57 @@
       "bytes": 153,
       "sha256": "5864629e161eaddd82c85249ba7c0c5550f6698ad79c74af11236455c25ea55b"
     },
+    "configs/task/imagewam_both.yaml": {
+      "bytes": 96,
+      "sha256": "1c17afed362d7283c6454943f8de207172b81607ecfad4580079c850de17eaaf"
+    },
     "configs/task/imagewam_geometry.yaml": {
       "bytes": 152,
       "sha256": "ed420531782b4a188ddf3f23046f30265eb7b02b745bba7245c2368e69a333a4"
     },
+    "configs/task/imagewam_only_depth.yaml": {
+      "bytes": 258,
+      "sha256": "8d5ac61d71388ccbc06c3a0c00e5f97f56c979e51fcaee97ff73d4018d3c188d"
+    },
+    "configs/task/imagewam_only_pose.yaml": {
+      "bytes": 252,
+      "sha256": "ac437e27f79391d94d746761df992ec5d578415217883495e7f7850afba85db6"
+    },
     "configs/task/simple_rgbd_global_depth.yaml": {
-      "bytes": 1584,
-      "sha256": "6be7fc2c55b12ff2711713d7211d1099d5efd8eb2c804f7530d1a1898ba9a10e"
+      "bytes": 1631,
+      "sha256": "47a7cc58b749ec3ab05c281332af39f7266293fc80cba357f1de25b68e9d22c1"
     },
     "configs/train.yaml": {
       "bytes": 1672,
       "sha256": "b1cd0b0c924b73fba24baa99e3770d8a4edc42d9510ff757a626cc03d5c7bc1b"
     },
-    "LICENSE": {
-      "bytes": 1207,
-      "sha256": "de463dbda031f5b7891e7d767b649306cd6b3f77711610bcbaf324ec445bca4f"
-    },
     "pyproject.toml": {
       "bytes": 2012,
       "sha256": "72610a56bd04803416430816684553edcbbe749f7a839825ef7d2bbe9e9f44f0"
-    },
-    "README.md": {
-      "bytes": 15528,
-      "sha256": "f97e4ce7258415cd7a24c46ff3ac96f407616e1a06d9a62c853f001559926349"
     },
     "scripts/accelerate_configs/accelerate_zero1_ds.yaml": {
       "bytes": 496,
       "sha256": "5b9e24f38c199fdff6bbd17981d86e2624f855f707660094c99f711efc8e0833"
     },
     "scripts/check_setup.py": {
-      "bytes": 3553,
-      "sha256": "1bc13c41c0bcdb6043dda6a6ca60946e77f5508c626fab549362cd16cbe26ae5"
+      "bytes": 5409,
+      "sha256": "cac67b436f020e05160bd8b5b8be5153743c1f58dc755e2e62e914eb49853837"
     },
     "scripts/download_data.sh": {
-      "bytes": 302,
-      "sha256": "aa8fdf14c28e89452ac48b9c82cb290eaf6f084c5c16a96b7436c365ae82d274"
+      "bytes": 1114,
+      "sha256": "dfc13d0df39465c9d6fc882394858be460fcd8743923b5629358d64ac5138f72"
     },
     "scripts/download_weights.py": {
-      "bytes": 1036,
-      "sha256": "ffb9440aa733091b390a6705f527983723fb71fac8b2e9d374d2ce922a7bda42"
+      "bytes": 1088,
+      "sha256": "62dcbe5f832f022961c8627b4892ca931771a90300d8a3b69b91bf65952c93f7"
     },
     "scripts/ds_configs/ds_zero1_config.json": {
       "bytes": 400,
       "sha256": "8b65ebcb8de8c3c89113695a61783cdb97c2aa5003477f0ca743aa511bc68312"
     },
     "scripts/env.sh": {
-      "bytes": 1141,
-      "sha256": "83cb943ae0014635b099e724906d296d115ea119b4776238e62720707fcb18e0"
+      "bytes": 1183,
+      "sha256": "8a1347a6c4171a21df94860c5cf0ef1bfc58acc19820b5a37011b8031c76295f"
     },
     "scripts/flux2/preprocess_action_dit_flux2.py": {
       "bytes": 6791,
@@ -101,8 +125,12 @@
       "sha256": "ad895dae188d3f1538d2f07d9915f59bffe2949b2813e607cf96f960e7ad622a"
     },
     "scripts/train.sh": {
-      "bytes": 825,
-      "sha256": "0cb10e9afec1af13a2eeb7ef59ecd790bb2d7c00ec2a624c4b9282ba711bee52"
+      "bytes": 868,
+      "sha256": "303f05ec6e63cd11a6b39c4ad9fd7e97e9ff50296730ea7d1dac9a0e34520760"
+    },
+    "scripts/verify_ablation_branches.py": {
+      "bytes": 7468,
+      "sha256": "edf2d8bec63c86a5e34632f0a197be518d42c90092ab6fe2903b60ac7270ae67"
     },
     "src/imagewam/__init__.py": {
       "bytes": 24,
@@ -204,6 +232,10 @@
       "bytes": 9407,
       "sha256": "09855ab85f1a5c4213861434b24e56e0299616fbe4168493e1583e5f2b53fd96"
     },
+    "src/imagewam/experiments.py": {
+      "bytes": 276,
+      "sha256": "66fe969b6635a908db6e179f4e19bb11826e3d4319a73baed7ccf257407b8b7f"
+    },
     "src/imagewam/fixed_geometry_eval.py": {
       "bytes": 2561,
       "sha256": "781eb2e9ec13704bf59da99cbb356871d945a0f54ac5f3aec7798b409a0af784"
@@ -237,8 +269,8 @@
       "sha256": "b44778969a99ed139ed30e9afc350215fd49ed2414037360fa36af46152d0490"
     },
     "src/imagewam/models/backbones/aligned_geometry_forward.py": {
-      "bytes": 4744,
-      "sha256": "0fdb9be4e89bda58168fb92bb8ac3d271062a79337e64662796d624c158f38aa"
+      "bytes": 4752,
+      "sha256": "b76b2f1a077bbee1cfc439fbc35e02f16081fdc223a960de1b13aea0116c13c7"
     },
     "src/imagewam/models/backbones/conditioned_vggt.py": {
       "bytes": 6549,
@@ -265,8 +297,8 @@
       "sha256": "88fe5bf8931bddec87a593ad37b4d028a4cc15a364341fe53da962f6a00907b5"
     },
     "src/imagewam/models/backbones/global_depth.py": {
-      "bytes": 10342,
-      "sha256": "b6b089d442c546cfa6561c1f56da4e89c129bf8d586a733d73934ec38a66e526"
+      "bytes": 11633,
+      "sha256": "bf6c7cef242da3f5aac8c98f83b4381f96e84cb2a5abd19b8ae0622a050a7206"
     },
     "src/imagewam/models/backbones/helpers/__init__.py": {
       "bytes": 415,
@@ -301,8 +333,8 @@
       "sha256": "44bfb55a5424495f42f52033af2782dd5c9b3acd77ec1845709f6475c53a64c4"
     },
     "src/imagewam/models/backbones/imagewam_global_depth.py": {
-      "bytes": 12239,
-      "sha256": "e57dbc453b9420cc7b94254008908d8ebcf3194c359ea747ffbeffb3dd51b554"
+      "bytes": 13022,
+      "sha256": "4da200b9a1051f67941919dc9f0ef2ddd53e9661c34a8d71de27b908fae5a326"
     },
     "src/imagewam/models/backbones/imagewam_noise_idm.py": {
       "bytes": 43919,
@@ -361,8 +393,8 @@
       "sha256": "0e665095fbab2879d0cc7622c7fc92b1b02883d40ab1ec3c256b2292e48b6054"
     },
     "src/imagewam/trainer.py": {
-      "bytes": 63762,
-      "sha256": "c19e8215851d82584164a5035817706070aefd3493b06a0e21c340ee55a00416"
+      "bytes": 63789,
+      "sha256": "c0074189c5b1b315bb149cb0c8efdb7f28044b19adf474f790885b680d6f9e01"
     },
     "src/imagewam/utils/__init__.py": {
       "bytes": 96,
@@ -452,13 +484,13 @@
       "bytes": 2672,
       "sha256": "21a6551d1f8f851d2d10b5c6cc56535956b983c3cb997d25f3db4dd6f59ef99f"
     },
-    "third_party/ml-depth-pro/pyproject.toml": {
-      "bytes": 1144,
-      "sha256": "5a2fd86d49fce90421e486278ef3daa55c3c055fd520326d05db8b8ce2947876"
-    },
     "third_party/ml-depth-pro/README.md": {
       "bytes": 3776,
       "sha256": "5a10be5d4c040e382a82ffc356ce06f1f73a8f7ff4250e53efea98680b4ea1e0"
+    },
+    "third_party/ml-depth-pro/pyproject.toml": {
+      "bytes": 1144,
+      "sha256": "5a2fd86d49fce90421e486278ef3daa55c3c055fd520326d05db8b8ce2947876"
     },
     "third_party/ml-depth-pro/src/depth_pro/__init__.py": {
       "bytes": 174,
@@ -507,14 +539,29 @@
     "third_party/ml-depth-pro/src/depth_pro/utils.py": {
       "bytes": 3480,
       "sha256": "a35e4fb1880403672661078ae25a1322289129b899eadc5a616db75eb45052f1"
-    },
-    "THIRD_PARTY_NOTICES.md": {
-      "bytes": 1120,
-      "sha256": "48ee5744d6a6dc36f58c635a08a48e2f249f33d9b9b122cc253e77582cdc629d"
-    },
-    "VALIDATION.json": {
-      "bytes": 759,
-      "sha256": "2372304d094ff822b9dee1b9356e5005a9abdd2c94c096b8447fbec2f6f176e9"
     }
-  }
+  },
+  "experiments": {
+    "baseline": {
+      "pose_enabled": false,
+      "depth_enabled": false,
+      "predict_translation": false
+    },
+    "only_pose": {
+      "pose_enabled": true,
+      "depth_enabled": false,
+      "predict_translation": false
+    },
+    "only_depth": {
+      "pose_enabled": false,
+      "depth_enabled": true,
+      "predict_translation": false
+    },
+    "both": {
+      "pose_enabled": true,
+      "depth_enabled": true,
+      "predict_translation": false
+    }
+  },
+  "hash_convention": "Git repository content with LF line endings; excludes this manifest."
 }

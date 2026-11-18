@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 mode="${1:-}"; [[ $# -gt 0 ]] && shift
-case "$mode" in baseline|geometry) ;; *) echo 'Usage: bash scripts/train.sh baseline|geometry [Hydra overrides]' >&2; exit 2;; esac
+case "$mode" in baseline|only_pose|only_depth|both|geometry) ;; *) echo 'Usage: bash scripts/train.sh baseline|only_pose|only_depth|both [Hydra overrides]' >&2; exit 2;; esac
 gpus="${GPU_PER_NODE:-4}"
 if [[ "${DRY_RUN:-false}" != true ]]; then
   python scripts/check_setup.py --mode "$mode" --require-weights

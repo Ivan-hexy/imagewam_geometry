@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - simple_rgbd_global_depth
+  - _self_
+model:
+  geometry_supervision:
+    enabled: true
+    pose_enabled: false
+    depth_enabled: true
+    predict_translation: false
+    lambda_rotation: 0.0
+wandb:
+  name: imagewam_only_depth

@@ -115,7 +115,7 @@ class Wan22Trainer:
         optimizer_params = trainable_params
         geometry = getattr(self.model, 'geometry_supervision', None)
         geometry_cfg = getattr(self.model, 'geometry_config', {})
-        if geometry is not None and geometry_cfg.get('kind') == 'global_depth_pro':
+        if geometry is not None and geometry_cfg.get('kind') == 'global_depth_pro' and geometry.depth_enabled:
             readout_ids = {id(p) for m in (geometry.decoder, geometry.head) for p in m.parameters()}
             optimizer_params = [
                 {'params': [p for p in trainable_params if id(p) not in readout_ids]},

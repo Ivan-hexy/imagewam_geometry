@@ -36,19 +36,28 @@ class ImageWAMGlobalDepth(ImageWAM):
         super().apply_trainable_policy()
         if getattr(self,'geometry_supervision',None) is not None:
             self.geometry_supervision.train().requires_grad_(True)
-            if self.geometry_config.get('freeze_depth_decoder',False):
+            if self.geometry_supervision.depth_enabled and self.geometry_config.get('freeze_depth_decoder',False):
                 self.geometry_supervision.decoder.requires_grad_(False)
                 self.geometry_supervision.head.requires_grad_(False)
 
     def extra_checkpoint_payload(self):
         return {'geometry_supervision':self.geometry_supervision.state_dict(),
                 'geometry_supervision_config':self.geometry_config,
-                'geometry_checkpoint_version':4 if self.geometry_supervision.predict_translation else 3}
+                'geometry_checkpoint_version':self._geometry_checkpoint_version()}
+
+    def _geometry_checkpoint_version(self):
+        geo=self.geometry_supervision
+        if not (geo.pose_enabled and geo.depth_enabled): return 5
+        return 4 if geo.predict_translation else 3
 
     def load_extra_checkpoint_payload(self,payload):
         if 'geometry_supervision' in payload:
-            expected=4 if self.geometry_supervision.predict_translation else 3
+            expected=self._geometry_checkpoint_version()
             if payload.get('geometry_checkpoint_version')!=expected: raise ValueError('Incompatible geometry checkpoint: pose heads or depth parameterization differ')
+            saved=payload.get('geometry_supervision_config',{})
+            for key in ('pose_enabled','depth_enabled'):
+                if bool(saved.get(key,True))!=bool(self.geometry_config.get(key,True)):
+                    raise ValueError(f'Checkpoint branch mismatch: {key}')
             self.geometry_supervision.load_state_dict(payload['geometry_supervision'],strict=True)
 
     def _joint_register_forward(self,video_pre,clean_pre,action_pre,return_cache=False):
@@ -111,7 +120,7 @@ class ImageWAMGlobalDepth(ImageWAM):
         return self.loss_lambda_video*lv+self.loss_lambda_action*la+extra,metrics
 
     @torch.no_grad()
-    def infer_geometry_flux2(self,prompt,input_image,K,proprio=None,context=None,context_mask=None):
+    def infer_geometry_flux2(self,prompt,input_image,K=None,proprio=None,context=None,context_mask=None):
         """Legacy separate-grid mode: RGB is pre-resized and K matches geometry output.
 
         With valid_resolution configured for joint RGB/geometry resizing, K instead
@@ -120,7 +129,7 @@ class ImageWAMGlobalDepth(ImageWAM):
         self.eval()
         original_hw=tuple(input_image.shape[-2:])
         input_image=self._pad_native_observation(input_image)
-        if tuple(self.geometry_config.get('valid_resolution',()))==tuple(self.geometry_config['resolution']) and original_hw!=tuple(input_image.shape[-2:]):
+        if K is not None and tuple(self.geometry_config.get('valid_resolution',()))==tuple(self.geometry_config['resolution']) and original_hw!=tuple(input_image.shape[-2:]):
             K=K.clone()
             K[...,0,:]*=input_image.shape[-1]/original_hw[1]
             K[...,1,:]*=input_image.shape[-2]/original_hw[0]
@@ -131,14 +140,19 @@ class ImageWAMGlobalDepth(ImageWAM):
         clean=self._make_clean_pre(dict(ref_image_latents=ref,ref_img_ids=ids,text_hidden_states=text,text_attention_mask=mask))
         empty=self.action_expert.pre_dit(ref.new_zeros(ref.shape[0],0,self.action_expert.action_dim),ref.new_zeros(ref.shape[0]))
         encoded=self._joint_register_forward(clean,clean,empty)
-        K=K.to(self.device).float()
-        if K.ndim==2: K=K.unsqueeze(0)
-        depth=self.geometry_supervision.decode(encoded['snapshots'],K)
-        head=self.geometry_supervision.rotation_head
-        R=rotation_matrix(head(encoded['pose'].to(head[0].weight.dtype)))
-        vh,vw=self.geometry_config.get('valid_resolution',depth.shape[-2:])
-        depth=depth[:,:vh,:vw]
-        result={'depth_m':depth.cpu(),'xyz_future_camera_m':backproject(depth,K).cpu(),'relative_rotation':R.cpu()}
+        result={}
+        if self.geometry_supervision.depth_enabled:
+            if K is None: raise ValueError('Intrinsics K are required for metric depth/XYZ readout')
+            K=K.to(self.device).float()
+            if K.ndim==2: K=K.unsqueeze(0)
+            depth=self.geometry_supervision.decode(encoded['snapshots'],K)
+            vh,vw=self.geometry_config.get('valid_resolution',depth.shape[-2:])
+            depth=depth[:,:vh,:vw]
+            result.update(depth_m=depth.cpu(),xyz_future_camera_m=backproject(depth,K).cpu())
+        if self.geometry_supervision.pose_enabled:
+            head=self.geometry_supervision.rotation_head
+            R=rotation_matrix(head(encoded['pose'].to(head[0].weight.dtype)))
+            result['relative_rotation']=R.cpu()
         if self.geometry_supervision.predict_translation:
             head=self.geometry_supervision.translation_head
             result['relative_translation_current_camera_ros_m']=head(encoded['pose'].to(head[0].weight.dtype)).float().cpu()

@@ -3,8 +3,8 @@ set -euo pipefail
 export IMAGEWAM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$IMAGEWAM_ROOT"
 if [[ -f .env.local ]]; then source .env.local; fi
-export SIMPLE_RGBD_ROOT="${SIMPLE_RGBD_ROOT:-$IMAGEWAM_ROOT/data/SIMPLE-RGBD-Teleop}"
-export SIMPLE_RGBD_CACHE="${SIMPLE_RGBD_CACHE:-$IMAGEWAM_ROOT/data/SIMPLE-RGBD-Teleop-cache}"
+export SIMPLE_RGBD_ROOT="${SIMPLE_RGBD_ROOT:-$IMAGEWAM_ROOT/data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop}"
+export SIMPLE_RGBD_CACHE="${SIMPLE_RGBD_CACHE:-$IMAGEWAM_ROOT/data/simple_rgbd_1aa44615/SIMPLE-RGBD-Teleop-cache}"
 export FLUX2_SRC="${FLUX2_SRC:-$IMAGEWAM_ROOT/third_party/flux2}"
 export FLUX2_MODEL_PATH="${FLUX2_MODEL_PATH:-$IMAGEWAM_ROOT/checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors}"
 export FLUX2_AE_MODEL_PATH="${FLUX2_AE_MODEL_PATH:-$IMAGEWAM_ROOT/checkpoints/flux2/FLUX.2-dev/ae.safetensors}"

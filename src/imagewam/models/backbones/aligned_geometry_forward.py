@@ -31,7 +31,7 @@ def aligned_forward(self, video_pre, clean_pre, action_pre, return_cache=False):
     pids[:, :, 1] = torch.arange(1, np_+1, device=txt.device)
     gids = ve.build_img_ids(b, *geo.grid, time_value=0, device=txt.device, dtype=txt.dtype)
     ppe = ve.transformer.pe_embedder(pids)
-    gpe = ve.transformer.pe_embedder(gids)
+    gpe = ve.transformer.pe_embedder(gids[:, :ng])
     tpe = video_pre['freqs']['txt']
     imgpe = torch.cat((video_pre['freqs']['img'][:, :, :nr], ppe, video_pre['freqs']['img'][:, :, nr:]), 2)
     ape = torch.cat((gpe, ve.transformer.pe_embedder(action_pre['ids'].to(txt.dtype))), 2)

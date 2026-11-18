@@ -1,0 +1,15 @@
+{
+  "repo": "ivanhe666/simple_rgbd",
+  "revision": "1aa446155d6597e91169872a965557640fb31871",
+  "directory": "simple_rgbd_1aa44615",
+  "episodes": 789,
+  "frames": 312139,
+  "tasks": 8,
+  "valid_action_windows_h32": 311072,
+  "files": {
+    "SIMPLE-RGBD-Teleop/meta/episodes.jsonl": "101608685679811fc4c97fa05b14a34578fd886887e4773dea6b3a13c8d2f9a1",
+    "SIMPLE-RGBD-Teleop/meta/info.json": "4991984b1fac7b311e1adfb148b0fa8ce1780da3b2e33a5126e02911d07210c1",
+    "SIMPLE-RGBD-Teleop-cache/all_verified_stats.json": "0a4124235cd8c085e590293a12e9a20ac7ca35d94db29b1e7c09da69cfa4bd8e",
+    "SIMPLE-RGBD-Teleop-cache/all_verified_training_manifest.json": "1d4a18b2922e8a28639e9ae3a04fc736e26611780b8e469834a1b25cd8b59f45"
+  }
+}

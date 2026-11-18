@@ -35,6 +35,8 @@ model:
     action_dim: 36
   geometry_supervision:
     enabled: true
+    pose_enabled: true
+    depth_enabled: true
     kind: global_depth_pro
     grid: [11, 20]
     resolution: [256, 448]

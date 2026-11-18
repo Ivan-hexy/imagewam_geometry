@@ -1,10 +1,304 @@
 {
-  "config_baseline_and_geometry": "passed",
-  "sampled_data_loader": "first and last windows of one trajectory for each of 8 tasks passed for both configurations",
-  "source_dataset": "792 episodes, 313553 frames; pinned episode manifest hash matched",
-  "cpu_backbone": "25-layer narrow FP32 model passed baseline output/gradient parity and action KV-cache parity",
-  "baseline_parity_max_output_error": 0.0,
-  "baseline_parity_max_gradient_error": 5.820766091346741e-10,
-  "training_reference": "200 updates on 4 A800 80GB GPUs, per-GPU batch 8 and accumulation 2 completed before export",
-  "limits": "Validation used an existing tested Python environment; fresh dependency installation and full GPU training in the exported directory were not rerun."
+  "date": "2026-11-18",
+  "dataset_revision": "1aa446155d6597e91169872a965557640fb31871",
+  "dataset": {
+    "episodes": 789,
+    "frames": 312139,
+    "valid_action_windows_h32": 311072,
+    "all_windows_enumerated": true,
+    "sampled_first_last_windows_per_task": 8
+  },
+  "cpu_structural_checks": {
+    "passed": true,
+    "actual_constructor_and_depth_decoder_checked": true,
+    "masked_rotation_gradients_zero": true,
+    "both_legacy_parity": {
+      "identical_loss": true,
+      "identical_input_gradients": true
+    },
+    "narrow_transformer": {
+      "baseline": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "only_pose": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "only_depth": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      },
+      "both": {
+        "finite_backward": true,
+        "all_25_layer_cache_parity": true,
+        "no_future_leak": true
+      }
+    },
+    "note": "CPU FP32 narrow 25-layer test; no full-size GPU convergence claim"
+  },
+  "gpu_smoke": {
+    "hardware": "4 NVIDIA L40 GPUs",
+    "per_gpu_batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "cpu_optimizer_offload": false,
+    "predict_translation": false,
+    "max_steps": 3,
+    "warmup_steps": 0,
+    "results": {
+      "baseline": {
+        "passed": true,
+        "optimizer_updates": 3,
+        "metrics": [
+          {
+            "step": 1,
+            "loss": 2.2338764667510986,
+            "lr": 1.88125e-05,
+            "loss_video": 0.19890961050987244,
+            "loss_action": 2.0349669456481934,
+            "loss_video_raw": 0.3978192210197449,
+            "loss_action_raw": 2.0349669456481934
+          },
+          {
+            "step": 2,
+            "loss": 3.300168514251709,
+            "lr": 6.437500000000003e-06,
+            "loss_video": 0.36969083547592163,
+            "loss_action": 2.9304776191711426,
+            "loss_video_raw": 0.7393816709518433,
+            "loss_action_raw": 2.9304776191711426
+          },
+          {
+            "step": 3,
+            "loss": 2.533799648284912,
+            "lr": 2.5000000000000004e-07,
+            "loss_video": 0.2123027741909027,
+            "loss_action": 2.3214969635009766,
+            "loss_video_raw": 0.4246055483818054,
+            "loss_action_raw": 2.3214969635009766
+          }
+        ]
+      },
+      "only_pose": {
+        "passed": true,
+        "optimizer_updates": 3,
+        "metrics": [
+          {
+            "step": 1,
+            "loss": 2.260957717895508,
+            "lr": 1.88125e-05,
+            "rotation_error_deg": 6.887030124664307,
+            "rotation_endpoint_error_deg": 9.580584526062012,
+            "rotation_identity_error_deg": 6.887030124664307,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.0,
+            "loss_relative_rotation": 0.00834469310939312,
+            "loss_relative_pose": 0.00834469310939312,
+            "loss_relative_pose_weighted": 0.04172345995903015,
+            "loss_geometry": 0.04172345995903015,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 0.0,
+            "loss_video": 0.20012739300727844,
+            "loss_action": 2.019106864929199,
+            "loss_video_raw": 0.4002547860145569,
+            "loss_action_raw": 2.019106864929199
+          },
+          {
+            "step": 2,
+            "loss": 3.269258737564087,
+            "lr": 6.437500000000003e-06,
+            "rotation_error_deg": 2.5878639221191406,
+            "rotation_endpoint_error_deg": 3.8658013343811035,
+            "rotation_identity_error_deg": 2.291388750076294,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.0,
+            "loss_relative_rotation": 0.0009543168125674129,
+            "loss_relative_pose": 0.0009543168125674129,
+            "loss_relative_pose_weighted": 0.004771584179252386,
+            "loss_geometry": 0.004771584179252386,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 0.0,
+            "loss_video": 0.37555789947509766,
+            "loss_action": 2.8889293670654297,
+            "loss_video_raw": 0.7511157989501953,
+            "loss_action_raw": 2.8889293670654297
+          },
+          {
+            "step": 3,
+            "loss": 2.5668599605560303,
+            "lr": 2.5000000000000004e-07,
+            "rotation_error_deg": 1.9224543571472168,
+            "rotation_endpoint_error_deg": 1.7374181747436523,
+            "rotation_identity_error_deg": 0.8483469486236572,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.0,
+            "loss_relative_rotation": 0.00032296820427291095,
+            "loss_relative_pose": 0.00032296820427291095,
+            "loss_relative_pose_weighted": 0.0016148409340530634,
+            "loss_geometry": 0.0016148409340530634,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 0.0,
+            "loss_video": 0.21551460027694702,
+            "loss_action": 2.3497304916381836,
+            "loss_video_raw": 0.43102920055389404,
+            "loss_action_raw": 2.3497304916381836
+          }
+        ]
+      },
+      "only_depth": {
+        "passed": true,
+        "optimizer_updates": 3,
+        "metrics": [
+          {
+            "step": 1,
+            "loss": 2.5753605365753174,
+            "lr": 1.88125e-05,
+            "depth_abs_error_m": 1.088737964630127,
+            "geometry_valid_samples": 1.0,
+            "loss_global_xyz": 0.7503429055213928,
+            "loss_relative_rotation": 0.0,
+            "loss_relative_pose": 0.0,
+            "loss_relative_pose_weighted": 0.0,
+            "loss_geometry": 0.3751714527606964,
+            "pose_branch_enabled": 0.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.19890962541103363,
+            "loss_action": 2.001279354095459,
+            "loss_video_raw": 0.39781925082206726,
+            "loss_action_raw": 2.001279354095459
+          },
+          {
+            "step": 2,
+            "loss": 3.6075634956359863,
+            "lr": 6.437500000000003e-06,
+            "depth_abs_error_m": 1.383949875831604,
+            "geometry_valid_samples": 1.0,
+            "loss_global_xyz": 0.9482295513153076,
+            "loss_relative_rotation": 0.0,
+            "loss_relative_pose": 0.0,
+            "loss_relative_pose_weighted": 0.0,
+            "loss_geometry": 0.4741147756576538,
+            "pose_branch_enabled": 0.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.3746258616447449,
+            "loss_action": 2.7588229179382324,
+            "loss_video_raw": 0.7492517232894897,
+            "loss_action_raw": 2.7588229179382324
+          },
+          {
+            "step": 3,
+            "loss": 2.854048728942871,
+            "lr": 2.5000000000000004e-07,
+            "depth_abs_error_m": 1.2842175960540771,
+            "geometry_valid_samples": 1.0,
+            "loss_global_xyz": 0.8834653496742249,
+            "loss_relative_rotation": 0.0,
+            "loss_relative_pose": 0.0,
+            "loss_relative_pose_weighted": 0.0,
+            "loss_geometry": 0.4417326748371124,
+            "pose_branch_enabled": 0.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.20618803799152374,
+            "loss_action": 2.2061281204223633,
+            "loss_video_raw": 0.4123760759830475,
+            "loss_action_raw": 2.2061281204223633
+          }
+        ]
+      },
+      "both": {
+        "passed": true,
+        "optimizer_updates": 3,
+        "metrics": [
+          {
+            "step": 1,
+            "loss": 2.6358346939086914,
+            "lr": 1.88125e-05,
+            "depth_abs_error_m": 1.0953751802444458,
+            "geometry_valid_samples": 1.0,
+            "rotation_error_deg": 6.887030124664307,
+            "rotation_endpoint_error_deg": 9.580584526062012,
+            "rotation_identity_error_deg": 6.887030124664307,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.7548383474349976,
+            "loss_relative_rotation": 0.00834469310939312,
+            "loss_relative_pose": 0.00834469310939312,
+            "loss_relative_pose_weighted": 0.04172345995903015,
+            "loss_geometry": 0.41914263367652893,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.20009827613830566,
+            "loss_action": 2.0165934562683105,
+            "loss_video_raw": 0.40019655227661133,
+            "loss_action_raw": 2.0165934562683105
+          },
+          {
+            "step": 2,
+            "loss": 3.6108322143554688,
+            "lr": 6.437500000000003e-06,
+            "depth_abs_error_m": 1.3902088403701782,
+            "geometry_valid_samples": 1.0,
+            "rotation_error_deg": 2.5744035243988037,
+            "rotation_endpoint_error_deg": 3.853440046310425,
+            "rotation_identity_error_deg": 2.291388750076294,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.9524078965187073,
+            "loss_relative_rotation": 0.0009440048015676439,
+            "loss_relative_pose": 0.0009440048015676439,
+            "loss_relative_pose_weighted": 0.004720023833215237,
+            "loss_geometry": 0.48092395067214966,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.37642180919647217,
+            "loss_action": 2.753486156463623,
+            "loss_video_raw": 0.7528436183929443,
+            "loss_action_raw": 2.753486156463623
+          },
+          {
+            "step": 3,
+            "loss": 3.0194220542907715,
+            "lr": 2.5000000000000004e-07,
+            "depth_abs_error_m": 1.2972657680511475,
+            "geometry_valid_samples": 1.0,
+            "rotation_error_deg": 1.8484801054000854,
+            "rotation_endpoint_error_deg": 1.6738057136535645,
+            "rotation_identity_error_deg": 0.8483469486236572,
+            "rotation_valid_samples": 1.0,
+            "rotation_valid_steps": 32.0,
+            "rotation_endpoint_valid_samples": 1.0,
+            "loss_global_xyz": 0.8925200700759888,
+            "loss_relative_rotation": 0.000310022005578503,
+            "loss_relative_pose": 0.000310022005578503,
+            "loss_relative_pose_weighted": 0.0015501100569963455,
+            "loss_geometry": 0.4478101432323456,
+            "pose_branch_enabled": 1.0,
+            "depth_branch_enabled": 1.0,
+            "loss_video": 0.2030590921640396,
+            "loss_action": 2.3685529232025146,
+            "loss_video_raw": 0.4061181843280792,
+            "loss_action_raw": 2.3685529232025146
+          }
+        ]
+      }
+    },
+    "peak_memory_gib": null,
+    "peak_memory_note": "Not instrumented; no OOM in these runs."
+  },
+  "limits": [
+    "Existing server environment reused; clean dependency installation not tested.",
+    "3 optimizer updates test execution, not convergence or steady-state speed.",
+    "No 40k runs or simulator rollouts performed for this release."
+  ]
 }
