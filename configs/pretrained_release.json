@@ -1,0 +1,52 @@
+{
+  "release": "2026-11-18",
+  "purpose": "Initial checkpoints for ImageWAM SIMPLE RGB-D baseline / only_pose / only_depth / both; not a trained robot policy",
+  "files": {
+    "flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors": {
+      "bytes": 7751105712,
+      "sha256": "9c5fed22b76baea749d88fc2abe3ad53245e7b21a0d353a762665eea00043b92",
+      "tensor_dtypes": {
+        "BF16": 149
+      }
+    },
+    "flux2/FLUX.2-dev/ae.safetensors": {
+      "bytes": 168118886,
+      "sha256": "501826f605dc88d483f3e2464372ffa5302dad32fd9f7512a2c99badf4649eac",
+      "tensor_dtypes": {
+        "I64": 1,
+        "BF16": 250
+      },
+      "conversion_metadata": {
+        "revision": "a3b4f4849157f664bdbc776fd7453c2783562f4d",
+        "source_repo": "black-forest-labs/FLUX.2-klein-base-4B",
+        "conversion": "diffusers-to-BFL keys, official roundtrip checked"
+      }
+    },
+    "depth_pro/depth_pro.pt": {
+      "bytes": 1904446787,
+      "sha256": "3eb35ca68168ad3d14cb150f8947a4edf85589941661fdb2686259c80685c0ce"
+    },
+    "action_dit_init.pt": {
+      "bytes": 2559636891,
+      "sha256": "4897e83d54fe07c9794b780cb2ffc4e6c972f337809d80bc67d95a51dc4ec7e6"
+    }
+  },
+  "action_dit": {
+    "video_variant": "klein-base-4b",
+    "action_dim": 36,
+    "hidden_dim": 1024,
+    "num_layers_double": 5,
+    "num_layers_single": 20,
+    "num_heads": 24,
+    "attn_head_dim": 128,
+    "alpha_scaling": true,
+    "action_encoder_and_head_included": false,
+    "contains_training_or_optimizer_state": false,
+    "metadata_source_path_sanitized": true,
+    "all_original_tensor_values_preserved": true
+  },
+  "repo": "ivanhe666/imagewam_pretrained",
+  "repo_type": "model",
+  "revision": "f4f1ff471c36b13055c537d74a7a71e741dfc551",
+  "local_dir": "checkpoints"
+}

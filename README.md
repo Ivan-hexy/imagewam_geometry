@@ -205,6 +205,29 @@ source scripts/env.sh
 
 ## 6. 第四步：下载模型权重并生成 ActionDiT 初始化
 
+### 推荐：直接下载已准备好的魔搭初始化包
+
+公开模型仓库：[ivanhe666/imagewam_pretrained](https://modelscope.cn/models/ivanhe666/imagewam_pretrained)。四份权重合计约 **12.38 GB**，包含已经生成的 `action_dit_init.pt`，可供四组实验共用；这不是训练后的机器人策略检查点。
+
+在本代码仓库根目录执行，沿用第三步的 `.download-venv`：
+
+```bash
+.download-venv/bin/ms-hub download ivanhe666/imagewam_pretrained \
+  --repo-type model \
+  --revision f4f1ff471c36b13055c537d74a7a71e741dfc551 \
+  --local-dir ./checkpoints --max-workers 4
+(cd checkpoints && sha256sum -c SHA256SUMS)
+source scripts/env.sh
+```
+
+四项校验都应显示 `OK`。下载后的四个文件路径与下表“默认路径”完全对应，**随后直接进入第五步检查，无需再运行本节后面的官方权重下载或初始化生成命令**。如果 `.env.local` 中有旧的自定义权重路径，先将其更新为本次文件路径。
+
+这套包复用已通过四组冒烟测试的权重。包内 AE 实际来自 **klein-base-4B 官方 Diffusers VAE**，已转成 BFL 键名格式和 BF16；`FLUX.2-dev` 是兼容代码的保存目录名，不能据此判断来源。ActionDiT 文件仅清理了来源元数据中的服务器绝对路径，全部参数 tensor 保持一致。文件大小、哈希和转换信息见 [configs/pretrained_release.json](configs/pretrained_release.json)；各组件的原始许可和研究用途限制保留在魔搭仓库内。
+
+### 备选：从官方来源下载并生成初始化
+
+以下方式适合自行准备原始权重，与上面的魔搭下载方式选择一种。官方 dev AE 与包内已转换的 BF16 AE 不保证文件字节相同；四组公平比较应始终使用同一套初始化文件。
+
 | 权重 | 官方来源与文件 | 默认路径 | 需要的实验 |
 |---|---|---|---|
 | FLUX.2 主干 | [FLUX.2-klein-base-4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B/tree/main)，`flux-2-klein-base-4b.safetensors` | `checkpoints/flux2/FLUX.2-klein-base-4B/flux-2-klein-base-4b.safetensors` | 四组 |

@@ -1,5 +1,5 @@
 {
-  "release": "2026-11-18-readme-default-path-audit",
+  "release": "2026-11-18-modelscope-pretrained-bundle",
   "upstream_imagewam_commit": "5d4a341ed20a95cdb08f0293f3d44778b9a9e05a",
   "dataset": {
     "repo": "ivanhe666/simple_rgbd",
@@ -16,9 +16,9 @@
     "predict_translation": false
   },
   "files": {
-    "SETUP_AUDIT.json": {
-      "bytes": 6538,
-      "sha256": "1b9147412f065a3b82208ed472f3dc54e5894b317c3a6f2d3d60d3e4d8dcc57b"
+    "configs/pretrained_release.json": {
+      "bytes": 1768,
+      "sha256": "2321051c3aa31aa6e3af780eb8838f5cacdb95ea4b93d95823f3e71724642715"
     },
     ".env.example": {
       "bytes": 790,
@@ -37,8 +37,12 @@
       "sha256": "de463dbda031f5b7891e7d767b649306cd6b3f77711610bcbaf324ec445bca4f"
     },
     "README.md": {
-      "bytes": 33191,
-      "sha256": "5087f3ed2265e2e4c1afef0e6a6da06d0052b34a3a92e86090798195f5e02977"
+      "bytes": 34987,
+      "sha256": "85e59793c9eaae42c7b22ad3b62bb5b0ca8c50e3b76a0eb9625982eb4c702da4"
+    },
+    "SETUP_AUDIT.json": {
+      "bytes": 6538,
+      "sha256": "1b9147412f065a3b82208ed472f3dc54e5894b317c3a6f2d3d60d3e4d8dcc57b"
     },
     "SPEED_REPORT.json": {
       "bytes": 6433,
@@ -49,8 +53,8 @@
       "sha256": "48ee5744d6a6dc36f58c635a08a48e2f249f33d9b9b122cc253e77582cdc629d"
     },
     "VALIDATION.json": {
-      "bytes": 17593,
-      "sha256": "176ed1e778b024e6ede6d4ee16a02053fa19862bef463e0c27ade55718cc96b4"
+      "bytes": 18027,
+      "sha256": "832117e30146c87cab0124b1ac4101a7741b31b2d08c90bfb280bb8ce1ca75f2"
     },
     "configs/data/simple_rgbd.yaml": {
       "bytes": 547,
@@ -571,5 +575,10 @@
       "predict_translation": false
     }
   },
-  "hash_convention": "Git repository content with LF line endings; excludes this manifest."
+  "hash_convention": "Git repository content with LF line endings; excludes this manifest.",
+  "pretrained": {
+    "repo": "ivanhe666/imagewam_pretrained",
+    "repo_type": "model",
+    "revision": "f4f1ff471c36b13055c537d74a7a71e741dfc551"
+  }
 }

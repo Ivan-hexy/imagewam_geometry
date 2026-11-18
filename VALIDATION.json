@@ -517,5 +517,15 @@
     "project_page_verified": true,
     "project_url": "https://forge.coreweave.com/wandb/ivanhe191821-imagewam/imagewam_geometry",
     "temporary_local_and_remote_credential_files_deleted": true
+  },
+  "modelscope_pretrained_release": {
+    "repo": "ivanhe666/imagewam_pretrained",
+    "revision": "f4f1ff471c36b13055c537d74a7a71e741dfc551",
+    "public": true,
+    "four_checkpoint_cloud_sizes_and_sha256_matched": true,
+    "anonymous_repository_metadata_access_verified": true,
+    "action_dit_parameter_tensors_preserved": true,
+    "reference": "configs/pretrained_release.json",
+    "not_a_trained_policy_checkpoint": true
   }
 }
