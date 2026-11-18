@@ -40,3 +40,4 @@ dist/
 .pose_pilot/
 configs/task/pose_geodesic200.yaml
 loss_validation.json
+fused_optimizer_smoke_*.json

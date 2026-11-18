@@ -128,6 +128,7 @@ class Wan22Trainer:
             weight_decay=self.weight_decay,
             betas=(0.9, 0.95),
             foreach=getattr(self.cfg, 'optimizer_foreach', None),
+            fused=getattr(self.cfg, 'optimizer_fused', None),
         )
         
         self.train_loader = self._build_loader(self.train_dataset, worker_init_fn=worker_init_fn)

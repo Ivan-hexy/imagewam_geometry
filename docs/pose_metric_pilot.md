@@ -6,8 +6,9 @@ ActionDiT、Depth Pro 与尾部掩码保持不变。原来的 `imagewam_geometry
 配置仍默认只监督旋转；新入口为 `imagewam_geometry_pose`。
 
 **状态：CPU 数学与掩码检查通过；单卡前后向和第 0 步评估通过，但首个
-AdamW foreach 更新显存不足。改用逐张量 AdamW 的 200 步重试正在排队，
-尚无收敛结论，不是已经验证优于旧 loss 的正式推荐配置。**
+AdamW 更新显存不足。逐张量重试同样失败，因为 ZeRO 将参数展平为大张量，
+仍需额外 16.84 GiB 临时空间。下一次重试使用 fused AdamW；尚无完整模型
+更新或收敛结论，不是已经验证优于旧 loss 的正式推荐配置。**
 
 ## 损失
 
@@ -68,8 +69,10 @@ python -m accelerate.commands.launch \
 严格独立基准。没有机器人 rollout，不代表任务成功率。
 
 单卡 microbatch 1、累计 16（总 batch 16），200 次更新，峰值学习率
-2.5e-5，warmup 10 步后 cosine。`optimizer_foreach: false` 只改变 AdamW
-张量更新方式，以减少临时显存；没有 CPU 卸载、量化优化器或冻结主干。
+2.5e-5，warmup 10 步后 cosine。`optimizer_foreach: false` 和
+`optimizer_fused: true` 选择 fused AdamW 更新路径，尝试减少临时显存；
+AdamW 的超参数保持一致，仍可能存在浮点舍入差异。
+没有 CPU 卸载、量化优化器或冻结主干。
 不保存大模型检查点，只保存指标和固定评估记录。
 
 继续正常训练可使用 `task=imagewam_geometry_pose`。若更换数据，应重新拟合

@@ -4,6 +4,7 @@ defaults:
   - imagewam_geometry
   - _self_
 optimizer_foreach: false
+optimizer_fused: true
 model:
   geometry_supervision:
     predict_translation: true
